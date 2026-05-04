@@ -8,6 +8,7 @@ const { authRoutes } = require('./routes/authRoutes')
 const { usersRoutes } = require('./routes/usersRoutes')
 const { rolesRoutes } = require('./routes/rolesRoutes')
 const { auditRoutes } = require('./routes/auditRoutes')
+const { commercialRoutes } = require('./routes/commercialRoutes')
 const { parseSqlServerError } = require('./utils/sqlErrors')
 
 const app = express()
@@ -31,10 +32,11 @@ app.use(cookieParser())
 
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 200,
+    windowMs: env.rateLimit.windowMs,
+    limit: env.rateLimit.max,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
+    message: { message: 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.' },
   }),
 )
 
@@ -44,6 +46,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/roles', rolesRoutes)
 app.use('/api/audit', auditRoutes)
+app.use('/api/commercial', commercialRoutes)
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

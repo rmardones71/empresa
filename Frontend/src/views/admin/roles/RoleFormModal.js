@@ -53,7 +53,11 @@ const RoleFormModal = ({ visible, onClose, onSubmit, submitting, initialValues }
           </div>
 
           <div className="d-flex gap-3 align-items-center">
-            <CFormSwitch label="Activo" {...register('isActive')} />
+            <CFormSwitch
+              className="boolean-switch-field"
+              label="Activo"
+              {...register('isActive')}
+            />
           </div>
         </CModalBody>
         <CModalFooter>
@@ -61,7 +65,13 @@ const RoleFormModal = ({ visible, onClose, onSubmit, submitting, initialValues }
             Cancelar
           </CButton>
           <CButton color="primary" type="submit" disabled={submitting}>
-            {submitting ? (isEdit ? 'Guardando...' : 'Creando...') : isEdit ? 'Guardar cambios' : 'Crear rol'}
+            {submitting
+              ? isEdit
+                ? 'Guardando...'
+                : 'Creando...'
+              : isEdit
+                ? 'Guardar cambios'
+                : 'Crear rol'}
           </CButton>
         </CModalFooter>
       </CForm>

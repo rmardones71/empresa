@@ -8,6 +8,7 @@
     "dev": "node --disable-warning=DEP0169 server.js",
     "start": "node --disable-warning=DEP0169 server.js",
     "seed": "node --disable-warning=DEP0169 seed/seed-admin.js",
+    "migrate:commercial": "node --disable-warning=DEP0169 seed/run-commercial-migration.js",
     "test:smtp": "node --disable-warning=DEP0169 scripts/test-smtp.js"
   },
   "dependencies": {

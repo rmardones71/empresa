@@ -7,6 +7,7 @@ let poolPromise = null
 function getPool() {
   if (!poolPromise) {
     const sql = env.db.integrated ? require('mssql/msnodesqlv8') : mssql
+    const integratedServer = process.env.DB_PORT ? `${env.db.server},${env.db.port}` : env.db.server
     const common = {
       server: env.db.server,
       database: env.db.database,
@@ -21,7 +22,7 @@ function getPool() {
     const config = env.db.integrated
       ? {
           ...common,
-          connectionString: `Driver={${env.db.odbcDriver}};Server=${env.db.server},${env.db.port};Database=${env.db.database};Trusted_Connection=Yes;TrustServerCertificate=Yes;`,
+          connectionString: `Driver={${env.db.odbcDriver}};Server=${integratedServer};Database=${env.db.database};Trusted_Connection=Yes;Encrypt=${env.db.encrypt ? 'Yes' : 'No'};TrustServerCertificate=Yes;`,
         }
       : {
           ...common,

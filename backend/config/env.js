@@ -43,6 +43,10 @@ const env = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
+  rateLimit: {
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
+    max: Number(process.env.RATE_LIMIT_MAX || 2000),
+  },
 
   db: {
     database: process.env.DB_DATABASE || 'oportunidades',

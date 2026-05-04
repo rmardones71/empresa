@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form'
 const maxPhotoBytes = 250 * 1024
 
 const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submitting }) => {
-  const [photoDataUrl, setPhotoDataUrl] = useState('')
+  const [photoDataUrl, setPhotoDataUrl] = useState(initialValues?.photoDataUrl || '')
   const [photoError, setPhotoError] = useState('')
   const { register, handleSubmit, reset } = useForm({
     defaultValues: {
@@ -47,8 +47,6 @@ const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submi
         isActive: initialValues?.isActive ?? true,
         twoFactorEnabled: initialValues?.twoFactorEnabled ?? false,
       })
-      setPhotoDataUrl(initialValues?.photoDataUrl || '')
-      setPhotoError('')
     }
   }, [visible, initialValues, reset])
 
@@ -76,15 +74,25 @@ const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submi
 
   const submitWithPhoto = (values) => onSubmit({ ...values, photoDataUrl })
 
+  const handleClose = () => {
+    setPhotoError('')
+    onClose()
+  }
+
   return (
-    <CModal alignment="center" visible={visible} onClose={onClose} backdrop="static">
+    <CModal alignment="center" visible={visible} onClose={handleClose} backdrop="static">
       <CModalHeader>
         <CModalTitle>{isEdit ? 'Editar usuario' : 'Crear usuario'}</CModalTitle>
       </CModalHeader>
       <CForm onSubmit={handleSubmit(submitWithPhoto)}>
         <CModalBody>
           <div className="d-flex align-items-center gap-3 mb-3">
-            <CAvatar size="xl" src={photoDataUrl || undefined} color={photoDataUrl ? undefined : 'primary'} textColor="white">
+            <CAvatar
+              size="xl"
+              src={photoDataUrl || undefined}
+              color={photoDataUrl ? undefined : 'primary'}
+              textColor="white"
+            >
               {!photoDataUrl && (initialValues?.username || 'U').slice(0, 1).toUpperCase()}
             </CAvatar>
             <div className="flex-grow-1">
@@ -145,12 +153,20 @@ const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submi
             </CFormSelect>
           </div>
           <div className="d-flex gap-3">
-            <CFormSwitch label="Activo" {...register('isActive')} />
-            <CFormSwitch label="2FA" {...register('twoFactorEnabled')} />
+            <CFormSwitch
+              className="boolean-switch-field"
+              label="Activo"
+              {...register('isActive')}
+            />
+            <CFormSwitch
+              className="boolean-switch-field"
+              label="2FA"
+              {...register('twoFactorEnabled')}
+            />
           </div>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="outline" onClick={onClose} disabled={submitting}>
+          <CButton color="secondary" variant="outline" onClick={handleClose} disabled={submitting}>
             Cancelar
           </CButton>
           <CButton color="primary" type="submit" disabled={submitting || !!photoError}>
@@ -163,4 +179,3 @@ const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submi
 }
 
 export default UserFormModal
-

@@ -71,6 +71,7 @@ const Widgets = React.lazy(() => import('./views/widgets/Widgets'))
 const UserManagement = React.lazy(() => import('./views/admin/users/UserManagement'))
 const RolesManagement = React.lazy(() => import('./views/admin/roles/RolesManagement'))
 const AuditLogsManagement = React.lazy(() => import('./views/admin/audit/AuditLogsManagement'))
+const CommercialModule = React.lazy(() => import('./views/commercial/CommercialModule'))
 
 // Profile
 const MyProfile = React.lazy(() => import('./views/profile/MyProfile'))
@@ -142,6 +143,19 @@ const routes = [
   { path: '/admin/users', name: 'User Management', element: UserManagement },
   { path: '/admin/roles', name: 'Roles', element: RolesManagement },
   { path: '/admin/audit', name: 'Audit Logs', element: AuditLogsManagement },
+  { path: '/commercial/empresas', name: 'Empresas', element: CommercialModule },
+  { path: '/commercial/contactos', name: 'Contactos', element: CommercialModule },
+  { path: '/commercial/contratos', name: 'Contratos', element: CommercialModule },
+  { path: '/commercial/lineas', name: 'Lineas', element: CommercialModule },
+  { path: '/commercial/casos', name: 'Casos', element: CommercialModule },
+  { path: '/commercial/documentos', name: 'Documentos', element: CommercialModule },
+  { path: '/commercial/categorias', name: 'Categorias', element: CommercialModule },
+  { path: '/commercial/tipo_contactos', name: 'Tipos de contacto', element: CommercialModule },
+  { path: '/commercial/estado_contactos', name: 'Estados de contacto', element: CommercialModule },
+  { path: '/commercial/estado_vitales', name: 'Estados vitales', element: CommercialModule },
+  { path: '/commercial/tipo_servicios', name: 'Tipos de servicio', element: CommercialModule },
+  { path: '/commercial/tipo_tarifas', name: 'Tipos de tarifa', element: CommercialModule },
+  { path: '/commercial/frecuencias', name: 'Frecuencias', element: CommercialModule },
   { path: '/profile', name: 'My Profile', element: MyProfile },
   { path: '/profile/change-password', name: 'Change Password', element: ChangePassword },
 ]

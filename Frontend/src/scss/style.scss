@@ -217,9 +217,36 @@ body {
   line-height: 1.35;
 }
 
+.profile-summary-card,
+.profile-photo-editor {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-summary-card {
+  padding: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.profile-photo-editor {
+  padding: 0.9rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
 @media (max-width: 575.98px) {
   .export-date-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-summary-card,
+  .profile-photo-editor {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
@@ -307,6 +334,74 @@ body {
 
 .footer {
   min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+.commercial-toolbar {
+  gap: 1rem;
+}
+
+.commercial-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.commercial-tab {
+  flex: 0 0 auto;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 6px;
+  color: var(--cui-body-color);
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.commercial-tab:hover,
+.commercial-tab.active {
+  background: var(--cui-primary);
+  border-color: var(--cui-primary);
+  color: #fff;
+}
+
+.commercial-grid .table {
+  min-width: 920px;
+}
+
+.commercial-detail-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.commercial-detail-grid > div {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.commercial-detail-grid span,
+.commercial-detail-grid strong {
+  display: block;
+}
+
+.boolean-switch-field {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0;
+}
+
+.boolean-switch-field .form-check-input {
+  cursor: pointer;
+}
+
+.boolean-switch-field .form-check-label {
+  cursor: pointer;
+  font-weight: 500;
 }
 
 @include color-mode(dark) {
