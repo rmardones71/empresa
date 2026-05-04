@@ -9,10 +9,26 @@ async function listUsers(req, res) {
   const pageSize = Math.min(100, Math.max(10, Number(req.query.pageSize || 20)))
   const q = String(req.query.q || '').trim()
   const role = String(req.query.role || '').trim()
+  const sortBy = String(req.query.sortBy || 'userId')
+  const sortDir = String(req.query.sortDir || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
   const dateFrom = req.query.dateFrom ? new Date(String(req.query.dateFrom)) : null
   const dateTo = req.query.dateTo ? new Date(String(req.query.dateTo)) : null
 
   const offset = (page - 1) * pageSize
+  const sortColumns = {
+    userId: 'u.UserId',
+    username: 'u.Username',
+    email: 'u.Email',
+    firstName: 'u.FirstName',
+    lastName: 'u.LastName',
+    phone: 'u.Phone',
+    role: 'r.RoleName',
+    isActive: 'u.IsActive',
+    twoFactorEnabled: 'u.TwoFactorEnabled',
+    lastLogin: 'u.LastLogin',
+    createdAt: 'u.CreatedAt',
+  }
+  const orderBy = sortColumns[sortBy] || sortColumns.userId
 
   const where = []
   const params = { offset, pageSize }
@@ -50,14 +66,14 @@ async function listUsers(req, res) {
   const result = await query(
     `
     SELECT
-      u.UserId, u.Username, u.Email, u.FirstName, u.LastName, u.Phone,
+      u.UserId, u.Username, u.Email, u.FirstName, u.LastName, u.Phone, u.PhotoDataUrl,
       r.RoleName AS Role,
       u.IsActive, u.TwoFactorEnabled, u.TempPassword,
       u.LastLogin, u.CreatedAt
     FROM dbo.Users u
     INNER JOIN dbo.Roles r ON r.RoleId = u.RoleId
     ${whereSql}
-    ORDER BY u.UserId DESC
+    ORDER BY ${orderBy} ${sortDir}, u.UserId DESC
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
     `,
     params,
@@ -71,7 +87,7 @@ async function getUser(req, res) {
   const result = await query(
     `
     SELECT TOP 1
-      u.UserId, u.Username, u.Email, u.FirstName, u.LastName, u.Phone,
+      u.UserId, u.Username, u.Email, u.FirstName, u.LastName, u.Phone, u.PhotoDataUrl,
       u.RoleId, r.RoleName AS Role,
       u.IsActive, u.TwoFactorEnabled, u.TempPassword,
       u.LastLogin, u.CreatedAt
@@ -91,16 +107,38 @@ async function createUser(req, res) {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() })
 
   const ipAddress = req.ip
-  const { username, email, password, firstName, lastName, phone, roleId, isActive, twoFactorEnabled } = req.body
+  const {
+    username,
+    email,
+    password,
+    firstName,
+    lastName,
+    phone,
+    photoDataUrl,
+    roleId,
+    isActive,
+    twoFactorEnabled,
+  } = req.body
 
   const hash = await bcrypt.hash(password, env.security.bcryptSaltRounds)
   const result = await query(
     `
-    INSERT INTO dbo.Users (Username, Email, PasswordHash, FirstName, LastName, Phone, RoleId, IsActive, TwoFactorEnabled, TempPassword)
+    INSERT INTO dbo.Users (Username, Email, PasswordHash, FirstName, LastName, Phone, PhotoDataUrl, RoleId, IsActive, TwoFactorEnabled, TempPassword)
     OUTPUT INSERTED.UserId
-    VALUES (@username, @email, @hash, @firstName, @lastName, @phone, @roleId, @isActive, @twoFactorEnabled, 0)
+    VALUES (@username, @email, @hash, @firstName, @lastName, @phone, @photoDataUrl, @roleId, @isActive, @twoFactorEnabled, 0)
     `,
-    { username, email, hash, firstName: firstName ?? null, lastName: lastName ?? null, phone: phone ?? null, roleId, isActive: !!isActive, twoFactorEnabled: !!twoFactorEnabled },
+    {
+      username,
+      email,
+      hash,
+      firstName: firstName ?? null,
+      lastName: lastName ?? null,
+      phone: phone ?? null,
+      photoDataUrl: photoDataUrl ?? null,
+      roleId,
+      isActive: !!isActive,
+      twoFactorEnabled: !!twoFactorEnabled,
+    },
   )
 
   const userId = result.recordset[0]?.UserId
@@ -114,12 +152,13 @@ async function updateUser(req, res) {
 
   const ipAddress = req.ip
   const id = Number(req.params.id)
-  const { username, email, firstName, lastName, phone, roleId, isActive, twoFactorEnabled } = req.body
+  const { username, email, firstName, lastName, phone, photoDataUrl, roleId, isActive, twoFactorEnabled } = req.body
 
   await query(
     `
     UPDATE dbo.Users
     SET Username=@username, Email=@email, FirstName=@firstName, LastName=@lastName, Phone=@phone,
+        PhotoDataUrl=@photoDataUrl,
         RoleId=@roleId, IsActive=@isActive, TwoFactorEnabled=@twoFactorEnabled
     WHERE UserId=@id
     `,
@@ -130,6 +169,7 @@ async function updateUser(req, res) {
       firstName: firstName ?? null,
       lastName: lastName ?? null,
       phone: phone ?? null,
+      photoDataUrl: photoDataUrl ?? null,
       roleId,
       isActive: !!isActive,
       twoFactorEnabled: !!twoFactorEnabled,

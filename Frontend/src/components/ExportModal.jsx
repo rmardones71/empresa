@@ -53,13 +53,13 @@ const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
           doConfirm()
         }}
       >
-        <CModalBody style={{ fontSize: 15 }}>
-          <div className="mb-2">
-            <CFormLabel className="mb-1 fw-bold d-flex align-items-center gap-2">
+        <CModalBody className="export-modal-body">
+          <div className="export-modal-section">
+            <CFormLabel className="export-modal-label">
               <CIcon icon={cilList} />
               <span>Registros</span>
             </CFormLabel>
-            <div className="d-flex flex-column gap-2">
+            <div className="export-mode-options">
               <CFormCheck
                 type="radio"
                 name="exportMode"
@@ -77,34 +77,36 @@ const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
             </div>
           </div>
 
-          <div className="d-flex gap-3">
-            <div className="flex-grow-1">
-              <CFormLabel className="fw-bold d-flex align-items-center gap-2">
-                <CIcon icon={cilCalendar} />
-                <span>Fecha inicio</span>
-              </CFormLabel>
-              <CFormInput
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                disabled={mode !== 'range'}
-              />
+          <div className="export-modal-section">
+            <div className="export-date-grid">
+              <div>
+                <CFormLabel className="export-modal-label">
+                  <CIcon icon={cilCalendar} />
+                  <span>Fecha inicio</span>
+                </CFormLabel>
+                <CFormInput
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  disabled={mode !== 'range'}
+                />
+              </div>
+              <div>
+                <CFormLabel className="export-modal-label">
+                  <CIcon icon={cilCalendar} />
+                  <span>Fecha termino</span>
+                </CFormLabel>
+                <CFormInput
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  disabled={mode !== 'range'}
+                />
+              </div>
             </div>
-            <div className="flex-grow-1">
-              <CFormLabel className="fw-bold d-flex align-items-center gap-2">
-                <CIcon icon={cilCalendar} />
-                <span>Fecha termino</span>
-              </CFormLabel>
-              <CFormInput
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                disabled={mode !== 'range'}
-              />
+            <div className="export-modal-help">
+              Si seleccionas rango, se considera la fecha completa (00:00 a 23:59).
             </div>
-          </div>
-          <div className="small text-body-secondary mt-2">
-            Si seleccionas rango, se considera la fecha completa (00:00 a 23:59).
           </div>
         </CModalBody>
         <CModalFooter>

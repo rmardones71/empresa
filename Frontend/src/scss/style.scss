@@ -88,6 +88,47 @@ body {
   text-overflow: initial;
 }
 
+.users-grid {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.users-grid .table {
+  table-layout: auto;
+  min-width: max-content;
+}
+
+.users-grid .actions-cell {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  width: 310px;
+  min-width: 310px;
+  max-width: 310px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: -12px 0 22px rgba(15, 23, 42, 0.08);
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: initial;
+}
+
+.users-grid thead .actions-cell {
+  z-index: 4;
+  background: rgba(245, 245, 247, 0.98);
+}
+
+.users-grid tbody .actions-cell {
+  vertical-align: middle;
+}
+
+.users-grid tbody .actions-cell > div {
+  min-width: max-content;
+}
+
+.users-grid tbody .actions-cell .btn {
+  flex: 0 0 auto;
+}
+
 .table {
   margin-bottom: 0;
   --cui-table-color: #1d1d1f;
@@ -102,6 +143,81 @@ body {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;
+}
+
+.grid-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+.grid-sort-button:hover,
+.grid-sort-button.active {
+  color: var(--cui-primary);
+}
+
+.grid-sort-indicator {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.export-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1rem;
+  font-size: 15px;
+}
+
+.export-modal-section {
+  padding: 0.9rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.export-modal-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  font-weight: 700;
+}
+
+.export-mode-options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.export-date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.export-modal-help {
+  margin-top: 0.65rem;
+  color: var(--cui-secondary-color);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 575.98px) {
+  .export-date-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .table tbody td {

@@ -35,6 +35,7 @@ CREATE TABLE dbo.Users (
   FirstName NVARCHAR(100) NULL,
   LastName NVARCHAR(100) NULL,
   Phone NVARCHAR(30) NULL,
+  PhotoDataUrl NVARCHAR(MAX) NULL,
   RoleId INT NOT NULL,
   IsActive BIT NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT (1),
   TwoFactorEnabled BIT NOT NULL CONSTRAINT DF_Users_TwoFactorEnabled DEFAULT (0),

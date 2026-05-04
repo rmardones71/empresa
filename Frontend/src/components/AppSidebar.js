@@ -30,12 +30,10 @@ import {
   CSidebarHeader,
   CSidebarToggler,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
 
 import { AppSidebarNav } from './AppSidebarNav'
 
-import { logo } from 'src/assets/brand/logo'
-import { sygnet } from 'src/assets/brand/sygnet'
+import ucmLogo from 'src/assets/images/brand/logo-ucm.png'
 
 // sidebar nav config
 import navigation from '../_nav'
@@ -70,9 +68,35 @@ const AppSidebar = () => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to="/">
-          <CIcon customClassName="sidebar-brand-full" icon={logo} height={32} />
-          <CIcon customClassName="sidebar-brand-narrow" icon={sygnet} height={32} />
+        <CSidebarBrand to="/" className="d-flex align-items-center justify-content-center p-0 w-100">
+          <div
+            className="sidebar-brand-full"
+            style={{
+              width: '100%',
+              minHeight: 70,
+              borderRadius: 0,
+              background: '#ffffff',
+              padding: '10px 16px',
+            }}
+          >
+            <img src={ucmLogo} alt="UCM" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+          <div
+            className="sidebar-brand-narrow"
+            style={{
+              width: '100%',
+              height: 64,
+              borderRadius: 0,
+              background: '#ffffff',
+              padding: 8,
+            }}
+          >
+            <img
+              src={ucmLogo}
+              alt="UCM"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center' }}
+            />
+          </div>
         </CSidebarBrand>
         <CCloseButton
           className="d-lg-none"

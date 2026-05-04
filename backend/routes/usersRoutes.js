@@ -31,6 +31,7 @@ router.post(
     body('username').isString().trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
     body('password').isString().isLength({ min: 6 }),
+    body('photoDataUrl').optional({ nullable: true }).isString(),
     body('roleId').isInt({ min: 1 }),
   ],
   asyncHandler(controller.createUser),
@@ -43,6 +44,7 @@ router.put(
   [
     body('username').isString().trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
+    body('photoDataUrl').optional({ nullable: true }).isString(),
     body('roleId').isInt({ min: 1 }),
   ],
   asyncHandler(controller.updateUser),

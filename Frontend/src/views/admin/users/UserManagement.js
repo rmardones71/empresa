@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   CButton,
+  CAvatar,
   CCard,
   CCardBody,
   CCardHeader,
@@ -29,10 +30,28 @@ import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } fro
 import { useSelector } from 'react-redux'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
+import SortableTableHeader from 'src/components/SortableTableHeader'
+import { sortRows, toggleSort } from 'src/utils/gridSort'
+import { runOnEnter } from 'src/utils/gridKeyboard'
 
 const UserManagement = () => {
   const toast = useToast()
   const columnsStorageKey = 'crm_users_grid_columns_v1'
+  const defaultVisibleColumns = {
+    photo: true,
+    userId: true,
+    username: true,
+    email: true,
+    role: true,
+    isActive: true,
+    twoFactorEnabled: true,
+    lastLogin: false,
+    createdAt: false,
+    firstName: false,
+    lastName: false,
+    phone: false,
+    actions: true,
+  }
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -44,25 +63,11 @@ const UserManagement = () => {
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const raw = localStorage.getItem(columnsStorageKey)
-      if (raw) return JSON.parse(raw)
+      if (raw) return { ...defaultVisibleColumns, ...JSON.parse(raw), photo: true }
     } catch {
       // ignore
     }
-    // Default set that fits better on one screen
-    return {
-      userId: true,
-      username: true,
-      email: true,
-      role: true,
-      isActive: true,
-      twoFactorEnabled: true,
-      lastLogin: false,
-      createdAt: false,
-      firstName: false,
-      lastName: false,
-      phone: false,
-      actions: true,
-    }
+    return defaultVisibleColumns
   })
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -71,14 +76,34 @@ const UserManagement = () => {
   const [exporting, setExporting] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
+  const [sortBy, setSortBy] = useState('userId')
+  const [sortDir, setSortDir] = useState('desc')
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const userRole = useSelector((s) => s.auth.user?.role)
   const canExport = isPrivilegedRole(userRole)
+  const sortedItems = useMemo(
+    () =>
+      sortRows(items, sortBy, sortDir, {
+        userId: (row) => row.UserId,
+        username: (row) => row.Username,
+        email: (row) => row.Email,
+        firstName: (row) => row.FirstName,
+        lastName: (row) => row.LastName,
+        phone: (row) => row.Phone,
+        role: (row) => row.Role,
+        isActive: (row) => row.IsActive,
+        twoFactorEnabled: (row) => row.TwoFactorEnabled,
+        lastLogin: (row) => row.LastLogin,
+        createdAt: (row) => row.CreatedAt,
+      }),
+    [items, sortBy, sortDir],
+  )
 
   const columns = useMemo(
     () => [
       { key: 'userId', label: 'ID' },
+      { key: 'photo', label: 'Foto', sortable: false },
       { key: 'username', label: 'Username' },
       { key: 'email', label: 'Email' },
       { key: 'firstName', label: 'Nombre' },
@@ -89,7 +114,7 @@ const UserManagement = () => {
       { key: 'twoFactorEnabled', label: '2FA' },
       { key: 'lastLogin', label: 'Último Login' },
       { key: 'createdAt', label: 'Creación' },
-      { key: 'actions', label: 'Acciones' },
+      { key: 'actions', label: 'Acciones', sortable: false },
     ],
     [],
   )
@@ -126,7 +151,14 @@ const UserManagement = () => {
     try {
       const effectivePage = pageOverride ?? page
       const res = await api.get('/api/users', {
-        params: { page: effectivePage, pageSize, q: qOverride ?? q, role: roleOverride ?? role },
+        params: {
+          page: effectivePage,
+          pageSize,
+          q: qOverride ?? q,
+          role: roleOverride ?? role,
+          sortBy,
+          sortDir,
+        },
       })
       setItems(res.data.items)
       setTotal(res.data.total)
@@ -144,11 +176,25 @@ const UserManagement = () => {
   useEffect(() => {
     load().catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize])
+  }, [page, pageSize, sortBy, sortDir])
+
+  const handleSort = (key) => {
+    const next = toggleSort({ key, sortBy, sortDir })
+    setSortBy(next.sortBy)
+    setSortDir(next.sortDir)
+    setPage(1)
+  }
 
   const onSearch = () => {
     setPage(1)
     load({ pageOverride: 1 }).catch(() => {})
+  }
+
+  const onRoleFilterChange = (event) => {
+    const nextRole = event.target.value
+    setRole(nextRole)
+    setPage(1)
+    load({ pageOverride: 1, roleOverride: nextRole }).catch(() => {})
   }
 
   const fetchAllUsers = async ({ dateFromOverride, dateToOverride, allRecords } = {}) => {
@@ -161,7 +207,7 @@ const UserManagement = () => {
     while (true) {
       // eslint-disable-next-line no-await-in-loop
       const res = await api.get('/api/users', {
-        params: { page: pageAll, pageSize: pageSizeAll, q, role, ...dateParams },
+        params: { page: pageAll, pageSize: pageSizeAll, q, role, sortBy, sortDir, ...dateParams },
       })
       const batch = res.data.items || []
       all.push(...batch)
@@ -248,6 +294,7 @@ const UserManagement = () => {
       firstName: row.FirstName,
       lastName: row.LastName,
       phone: row.Phone,
+      photoDataUrl: row.PhotoDataUrl,
       isActive: row.IsActive,
       twoFactorEnabled: row.TwoFactorEnabled,
       roleId: roles.find((r) => r.RoleName === row.Role)?.RoleId,
@@ -264,6 +311,7 @@ const UserManagement = () => {
         firstName: values.firstName || null,
         lastName: values.lastName || null,
         phone: values.phone || null,
+        photoDataUrl: values.photoDataUrl || null,
         roleId: Number(values.roleId),
         isActive: !!values.isActive,
         twoFactorEnabled: !!values.twoFactorEnabled,
@@ -358,10 +406,11 @@ const UserManagement = () => {
               placeholder="Buscar: username, email, nombre, apellido"
               value={q}
               onChange={(e) => setQ(e.target.value)}
+              onKeyDown={runOnEnter(onSearch)}
             />
           </CCol>
           <CCol md={3}>
-            <CFormSelect value={role} onChange={(e) => setRole(e.target.value)}>
+            <CFormSelect value={role} onChange={onRoleFilterChange}>
               <option value="">Todos los roles</option>
               {roles.map((r) => (
                 <option key={r.RoleId} value={r.RoleName}>
@@ -391,20 +440,41 @@ const UserManagement = () => {
           </CCol>
         </CRow>
 
-        <div className="macos-grid">
+        <div className="macos-grid users-grid">
           <CTable hover>
             <CTableHead>
               <CTableRow>
                 {columns.map((c) => {
                   if (c.key !== 'actions' && !visibleColumns[c.key]) return null
-                  return <CTableHeaderCell key={c.key}>{c.label}</CTableHeaderCell>
+                  return (
+                    <SortableTableHeader
+                      key={c.key}
+                      column={c}
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className={c.key === 'actions' ? 'actions-cell' : undefined}
+                    />
+                  )
                 })}
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              {items.map((u) => (
+              {sortedItems.map((u) => (
                 <CTableRow key={u.UserId}>
                   {visibleColumns.userId && <CTableDataCell>{u.UserId}</CTableDataCell>}
+                  {visibleColumns.photo && (
+                    <CTableDataCell>
+                      <CAvatar
+                        size="md"
+                        src={u.PhotoDataUrl || undefined}
+                        color={u.PhotoDataUrl ? undefined : 'primary'}
+                        textColor="white"
+                      >
+                        {!u.PhotoDataUrl && String(u.Username || '?').slice(0, 1).toUpperCase()}
+                      </CAvatar>
+                    </CTableDataCell>
+                  )}
                   {visibleColumns.username && <CTableDataCell>{u.Username}</CTableDataCell>}
                   {visibleColumns.email && <CTableDataCell>{u.Email}</CTableDataCell>}
                   {visibleColumns.firstName && <CTableDataCell>{u.FirstName || '-'}</CTableDataCell>}
@@ -436,26 +506,28 @@ const UserManagement = () => {
                       {u.CreatedAt ? new Date(u.CreatedAt).toLocaleDateString() : '-'}
                     </CTableDataCell>
                   )}
-                  <CTableDataCell className="d-flex gap-2 actions-cell">
-                    <CButton size="sm" color="secondary" variant="outline" onClick={() => openEdit(u)}>
-                      <CIcon icon={cilPencil} className="me-1" /> Editar
-                    </CButton>
-                    <CButton
-                      size="sm"
-                      color={u.TwoFactorEnabled ? 'success' : 'danger'}
-                      variant="outline"
-                      onClick={() => toggle2fa(u.UserId)}
-                    >
-                      <CIcon icon={u.TwoFactorEnabled ? cilCheckCircle : cilXCircle} className="me-1" /> 2FA
-                    </CButton>
-                    <CButton
-                      size="sm"
-                      color={u.IsActive ? 'success' : 'danger'}
-                      variant="outline"
-                      onClick={() => toggleStatus(u.UserId)}
-                    >
-                      <CIcon icon={u.IsActive ? cilCheckCircle : cilXCircle} className="me-1" /> Estado
-                    </CButton>
+                  <CTableDataCell className="actions-cell">
+                    <div className="d-flex gap-2 justify-content-end">
+                      <CButton size="sm" color="secondary" variant="outline" onClick={() => openEdit(u)}>
+                        <CIcon icon={cilPencil} className="me-1" /> Editar
+                      </CButton>
+                      <CButton
+                        size="sm"
+                        color={u.TwoFactorEnabled ? 'success' : 'danger'}
+                        variant="outline"
+                        onClick={() => toggle2fa(u.UserId)}
+                      >
+                        <CIcon icon={u.TwoFactorEnabled ? cilCheckCircle : cilXCircle} className="me-1" /> 2FA
+                      </CButton>
+                      <CButton
+                        size="sm"
+                        color={u.IsActive ? 'success' : 'danger'}
+                        variant="outline"
+                        onClick={() => toggleStatus(u.UserId)}
+                      >
+                        <CIcon icon={u.IsActive ? cilCheckCircle : cilXCircle} className="me-1" /> Estado
+                      </CButton>
+                    </div>
                   </CTableDataCell>
                 </CTableRow>
               ))}

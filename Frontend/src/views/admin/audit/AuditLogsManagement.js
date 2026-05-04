@@ -24,6 +24,9 @@ import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } fro
 import { useSelector } from 'react-redux'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
+import SortableTableHeader from 'src/components/SortableTableHeader'
+import { sortRows, toggleSort } from 'src/utils/gridSort'
+import { runOnEnter } from 'src/utils/gridKeyboard'
 
 const AuditLogsManagement = () => {
   const toast = useToast()
@@ -39,6 +42,8 @@ const AuditLogsManagement = () => {
   const [exporting, setExporting] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
+  const [sortBy, setSortBy] = useState('auditId')
+  const [sortDir, setSortDir] = useState('desc')
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const raw = localStorage.getItem(columnsStorageKey)
@@ -58,6 +63,19 @@ const AuditLogsManagement = () => {
   })
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
+  const sortedItems = useMemo(
+    () =>
+      sortRows(items, sortBy, sortDir, {
+        auditId: (row) => row.AuditId,
+        createdAt: (row) => row.CreatedAt,
+        actionType: (row) => row.ActionType,
+        username: (row) => row.Username,
+        email: (row) => row.Email,
+        ipAddress: (row) => row.IPAddress,
+        description: (row) => row.Description,
+      }),
+    [items, sortBy, sortDir],
+  )
 
   const columns = useMemo(
     () => [
@@ -87,6 +105,8 @@ const AuditLogsManagement = () => {
           pageSize,
           q: qOverride ?? q,
           actionType: actionTypeOverride ?? actionType,
+          sortBy,
+          sortDir,
         },
       })
       setItems(res.data.items)
@@ -111,7 +131,7 @@ const AuditLogsManagement = () => {
     while (true) {
       // eslint-disable-next-line no-await-in-loop
       const res = await api.get('/api/audit', {
-        params: { page: pageAll, pageSize: pageSizeAll, q, actionType, ...dateParams },
+        params: { page: pageAll, pageSize: pageSizeAll, q, actionType, sortBy, sortDir, ...dateParams },
       })
       const batch = res.data.items || []
       all.push(...batch)
@@ -186,7 +206,24 @@ const AuditLogsManagement = () => {
   useEffect(() => {
     load().catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize])
+  }, [page, pageSize, sortBy, sortDir])
+
+  const handleSort = (key) => {
+    const next = toggleSort({ key, sortBy, sortDir })
+    setSortBy(next.sortBy)
+    setSortDir(next.sortDir)
+    setPage(1)
+  }
+
+  const onSearch = () => {
+    load({ resetPage: true }).catch(() => {})
+  }
+
+  const onActionTypeFilterChange = (event) => {
+    const nextActionType = event.target.value
+    setActionType(nextActionType)
+    load({ resetPage: true, actionTypeOverride: nextActionType }).catch(() => {})
+  }
 
   return (
       <CCard>
@@ -221,10 +258,11 @@ const AuditLogsManagement = () => {
               placeholder="Buscar: acción, descripción, username, email"
               value={q}
               onChange={(e) => setQ(e.target.value)}
+              onKeyDown={runOnEnter(onSearch)}
             />
           </CCol>
           <CCol md={3}>
-            <CFormSelect value={actionType} onChange={(e) => setActionType(e.target.value)}>
+            <CFormSelect value={actionType} onChange={onActionTypeFilterChange}>
               <option value="">Todas las acciones</option>
               {actionTypes.map((t) => (
                 <option key={t} value={t}>
@@ -238,7 +276,7 @@ const AuditLogsManagement = () => {
               className="flex-grow-1"
               color="secondary"
               variant="outline"
-              onClick={() => load({ resetPage: true })}
+              onClick={onSearch}
               disabled={loading}
             >
               {loading ? 'Buscando...' : 'Buscar'}
@@ -271,12 +309,20 @@ const AuditLogsManagement = () => {
               <CTableRow>
                 {columns.map((c) => {
                   if (!visibleColumns[c.key]) return null
-                  return <CTableHeaderCell key={c.key}>{c.label}</CTableHeaderCell>
+                  return (
+                    <SortableTableHeader
+                      key={c.key}
+                      column={c}
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  )
                 })}
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              {items.map((a) => (
+              {sortedItems.map((a) => (
                 <CTableRow key={a.AuditId}>
                   {visibleColumns.auditId && <CTableDataCell>{a.AuditId}</CTableDataCell>}
                   {visibleColumns.createdAt && (

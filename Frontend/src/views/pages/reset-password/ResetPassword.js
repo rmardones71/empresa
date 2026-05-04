@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { CButton, CCard, CCardBody, CCol, CContainer, CForm, CFormInput, CRow } from '@coreui/react'
+import { CButton, CForm, CFormInput, CInputGroup, CInputGroupText } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilLockLocked } from '@coreui/icons'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
+import AuthSplitLayout from 'src/components/AuthSplitLayout'
 import { resetPassword } from 'src/services/authService'
 import { useToast } from 'src/components/ToastProvider'
 
@@ -47,45 +50,63 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
-      <CContainer>
-        <CRow className="justify-content-center">
-          <CCol md={6}>
-            <CCard className="p-4">
-              <CCardBody>
-                <CForm onSubmit={handleSubmit(onSubmit)}>
-                  <h1>Cambiar contraseña</h1>
-                  <p className="text-body-secondary">
-                    {user?.tempPassword ? 'Debes cambiar tu contraseña temporal.' : 'Actualiza tu contraseña.'}
-                  </p>
-                  <CFormInput
-                    type="password"
-                    placeholder="Nueva contraseña"
-                    invalid={!!errors.newPassword}
-                    {...register('newPassword')}
-                  />
-                  {errors.newPassword && <div className="text-danger mt-2">{errors.newPassword.message}</div>}
-                  <CFormInput
-                    className="mt-3"
-                    type="password"
-                    placeholder="Confirmar contraseña"
-                    invalid={!!errors.confirm}
-                    {...register('confirm')}
-                  />
-                  {errors.confirm && <div className="text-danger mt-2">{errors.confirm.message}</div>}
-                  <div className="d-grid mt-3">
-                    <CButton type="submit" color="primary" disabled={submitting}>
-                      {submitting ? 'Guardando...' : 'Guardar'}
-                    </CButton>
-                  </div>
-                </CForm>
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      </CContainer>
-    </div>
+    <AuthSplitLayout>
+      <CForm onSubmit={handleSubmit(onSubmit)}>
+        <h1 className="mb-2" style={{ color: '#071b63', fontSize: 26, fontWeight: 600 }}>
+          Cambiar contraseña
+        </h1>
+        <p className="mb-4" style={{ color: '#64748b' }}>
+          {user?.tempPassword ? 'Debes cambiar tu contraseña temporal.' : 'Actualiza tu contraseña.'}
+        </p>
+
+        <CInputGroup className="mb-3">
+          <CInputGroupText style={{ background: '#fff', color: '#49627f' }}>
+            <CIcon icon={cilLockLocked} />
+          </CInputGroupText>
+          <CFormInput
+            type="password"
+            placeholder="Nueva contraseña"
+            autoComplete="new-password"
+            invalid={!!errors.newPassword}
+            style={{ minHeight: 56 }}
+            {...register('newPassword')}
+          />
+        </CInputGroup>
+        {errors.newPassword && <div className="text-danger mb-2">{errors.newPassword.message}</div>}
+
+        <CInputGroup className="mb-4">
+          <CInputGroupText style={{ background: '#fff', color: '#49627f' }}>
+            <CIcon icon={cilLockLocked} />
+          </CInputGroupText>
+          <CFormInput
+            type="password"
+            placeholder="Confirmar contraseña"
+            autoComplete="new-password"
+            invalid={!!errors.confirm}
+            style={{ minHeight: 56 }}
+            {...register('confirm')}
+          />
+        </CInputGroup>
+        {errors.confirm && <div className="text-danger mb-2">{errors.confirm.message}</div>}
+
+        <CButton
+          className="w-100 border-0"
+          type="submit"
+          disabled={submitting}
+          style={{
+            minHeight: 56,
+            borderRadius: 28,
+            background: '#07136d',
+            fontWeight: 700,
+            boxShadow: '0 14px 28px rgba(7, 19, 109, 0.2)',
+          }}
+        >
+          {submitting ? 'Guardando...' : 'Guardar'}
+        </CButton>
+      </CForm>
+    </AuthSplitLayout>
   )
 }
 
 export default ResetPassword
+

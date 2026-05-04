@@ -6,10 +6,22 @@ async function listAuditLogs(req, res) {
   const q = String(req.query.q || '').trim()
   const actionType = String(req.query.actionType || '').trim()
   const userId = req.query.userId ? Number(req.query.userId) : null
+  const sortBy = String(req.query.sortBy || 'auditId')
+  const sortDir = String(req.query.sortDir || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
   const dateFrom = req.query.dateFrom ? new Date(String(req.query.dateFrom)) : null
   const dateTo = req.query.dateTo ? new Date(String(req.query.dateTo)) : null
 
   const offset = (page - 1) * pageSize
+  const sortColumns = {
+    auditId: 'a.AuditId',
+    createdAt: 'a.CreatedAt',
+    actionType: 'a.ActionType',
+    username: 'u.Username',
+    email: 'u.Email',
+    ipAddress: 'a.IPAddress',
+    description: 'a.[Description]',
+  }
+  const orderBy = sortColumns[sortBy] || sortColumns.auditId
 
   const where = []
   const params = { offset, pageSize }
@@ -59,7 +71,7 @@ async function listAuditLogs(req, res) {
     FROM dbo.AuditLogs a
     LEFT JOIN dbo.Users u ON u.UserId = a.UserId
     ${whereSql}
-    ORDER BY a.AuditId DESC
+    ORDER BY ${orderBy} ${sortDir}, a.AuditId DESC
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
     `,
     params,
@@ -80,4 +92,3 @@ async function listActionTypes(req, res) {
 }
 
 module.exports = { listAuditLogs, listActionTypes }
-

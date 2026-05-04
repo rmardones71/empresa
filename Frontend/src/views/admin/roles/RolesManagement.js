@@ -21,6 +21,8 @@ import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } fro
 import { useSelector } from 'react-redux'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
+import SortableTableHeader from 'src/components/SortableTableHeader'
+import { sortRows, toggleSort } from 'src/utils/gridSort'
 
 const RolesManagement = () => {
   const toast = useToast()
@@ -34,6 +36,8 @@ const RolesManagement = () => {
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
   const [editing, setEditing] = useState(null)
+  const [sortBy, setSortBy] = useState('roleId')
+  const [sortDir, setSortDir] = useState('asc')
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const raw = localStorage.getItem(columnsStorageKey)
@@ -56,10 +60,20 @@ const RolesManagement = () => {
 
   const total = roles.length
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
+  const sortedRoles = useMemo(
+    () =>
+      sortRows(roles, sortBy, sortDir, {
+        roleId: (row) => row.RoleId,
+        roleName: (row) => row.RoleName,
+        isActive: (row) => row.IsActive,
+        createdAt: (row) => row.CreatedAt,
+      }),
+    [roles, sortBy, sortDir],
+  )
   const pagedRoles = useMemo(() => {
     const offset = (page - 1) * pageSize
-    return roles.slice(offset, offset + pageSize)
-  }, [roles, page, pageSize])
+    return sortedRoles.slice(offset, offset + pageSize)
+  }, [sortedRoles, page, pageSize])
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
@@ -72,9 +86,16 @@ const RolesManagement = () => {
       { key: 'isActive', label: 'Activo' },
       { key: 'createdAt', label: 'Creado' },
     ]
-    if (canManageRoles) cols.push({ key: 'actions', label: 'Acciones' })
+    if (canManageRoles) cols.push({ key: 'actions', label: 'Acciones', sortable: false })
     return cols
   }, [canManageRoles])
+
+  const handleSort = (key) => {
+    const next = toggleSort({ key, sortBy, sortDir })
+    setSortBy(next.sortBy)
+    setSortDir(next.sortDir)
+    setPage(1)
+  }
 
   const load = async () => {
     const res = await api.get('/api/roles')
@@ -223,7 +244,15 @@ const RolesManagement = () => {
               <CTableRow>
                 {columns.map((c) => {
                   if (c.key !== 'actions' && !visibleColumns[c.key]) return null
-                  return <CTableHeaderCell key={c.key}>{c.label}</CTableHeaderCell>
+                  return (
+                    <SortableTableHeader
+                      key={c.key}
+                      column={c}
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  )
                 })}
               </CTableRow>
             </CTableHead>

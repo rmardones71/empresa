@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
-import { CButton, CCard, CCardBody, CCol, CContainer, CForm, CFormInput, CRow } from '@coreui/react'
+import { CButton, CForm, CFormInput, CInputGroup, CInputGroupText } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilShieldAlt } from '@coreui/icons'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
+import AuthSplitLayout from 'src/components/AuthSplitLayout'
 import { verify2fa } from 'src/services/authService'
 import { setSession } from 'src/store/authSlice'
 import { useToast } from 'src/components/ToastProvider'
@@ -23,8 +26,8 @@ const Verify2FA = () => {
   }, [userId, navigate])
 
   useEffect(() => {
-    const t = setInterval(() => setSecondsLeft((s) => (s > 0 ? s - 1 : 0)), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setSecondsLeft((seconds) => (seconds > 0 ? seconds - 1 : 0)), 1000)
+    return () => clearInterval(timer)
   }, [])
 
   const schema = yup.object({
@@ -59,40 +62,53 @@ const Verify2FA = () => {
   const ss = String(secondsLeft % 60).padStart(2, '0')
 
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
-      <CContainer>
-        <CRow className="justify-content-center">
-          <CCol md={6}>
-            <CCard className="p-4">
-              <CCardBody>
-                <CForm onSubmit={handleSubmit(onSubmit)}>
-                  <h1>Verificación 2FA</h1>
-                  <p className="text-body-secondary">Ingresa el código enviado a tu correo. ({mm}:{ss})</p>
-                  <CFormInput
-                    placeholder="Código 6 dígitos"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    invalid={!!errors.code}
-                    {...register('code')}
-                  />
-                  {errors.code && <div className="text-danger mt-2">{errors.code.message}</div>}
-                  <div className="d-grid mt-3">
-                    <CButton type="submit" color="primary" disabled={submitting || secondsLeft === 0}>
-                      {submitting ? 'Verificando...' : 'Verificar'}
-                    </CButton>
-                  </div>
-                  <div className="mt-3 text-center">
-                    <CButton color="link" onClick={() => navigate('/login')} className="px-0">
-                      Volver al login
-                    </CButton>
-                  </div>
-                </CForm>
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      </CContainer>
-    </div>
+    <AuthSplitLayout>
+      <CForm onSubmit={handleSubmit(onSubmit)}>
+        <h1 className="mb-2" style={{ color: '#071b63', fontSize: 26, fontWeight: 600 }}>
+          Verificación 2FA
+        </h1>
+        <p className="mb-4" style={{ color: '#64748b' }}>
+          Ingresa el código enviado a tu correo. Expira en {mm}:{ss}.
+        </p>
+
+        <CInputGroup className="mb-3">
+          <CInputGroupText style={{ background: '#fff', color: '#49627f' }}>
+            <CIcon icon={cilShieldAlt} />
+          </CInputGroupText>
+          <CFormInput
+            placeholder="Código 6 dígitos"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            invalid={!!errors.code}
+            style={{ minHeight: 56 }}
+            {...register('code')}
+          />
+        </CInputGroup>
+        {errors.code && <div className="text-danger mb-2">{errors.code.message}</div>}
+
+        <CButton
+          className="w-100 border-0 mb-3"
+          type="submit"
+          disabled={submitting || secondsLeft === 0}
+          style={{
+            minHeight: 56,
+            borderRadius: 28,
+            background: '#07136d',
+            color: '#ffffff',
+            fontWeight: 700,
+            boxShadow: '0 14px 28px rgba(7, 19, 109, 0.2)',
+          }}
+        >
+          {submitting ? 'Verificando...' : 'Verificar'}
+        </CButton>
+
+        <div className="text-center">
+          <CButton color="link" onClick={() => navigate('/login')} className="px-0" style={{ color: '#20466f' }}>
+            Volver al login
+          </CButton>
+        </div>
+      </CForm>
+    </AuthSplitLayout>
   )
 }
 

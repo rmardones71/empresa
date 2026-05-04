@@ -1,9 +1,12 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CButton, CCard, CCardBody, CCol, CContainer, CForm, CFormInput, CRow } from '@coreui/react'
+import { CButton, CForm, CFormInput, CInputGroup, CInputGroupText } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilEnvelopeClosed } from '@coreui/icons'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
+import AuthSplitLayout from 'src/components/AuthSplitLayout'
 import { forgotPassword } from 'src/services/authService'
 import { useToast } from 'src/components/ToastProvider'
 
@@ -34,32 +37,52 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
-      <CContainer>
-        <CRow className="justify-content-center">
-          <CCol md={6}>
-            <CCard className="p-4">
-              <CCardBody>
-                <CForm onSubmit={handleSubmit(onSubmit)}>
-                  <h1>Recuperación</h1>
-                  <p className="text-body-secondary">Recibirás una contraseña temporal por correo.</p>
-                  <CFormInput placeholder="Email" autoComplete="email" invalid={!!errors.email} {...register('email')} />
-                  {errors.email && <div className="text-danger mt-2">{errors.email.message}</div>}
-                  <div className="d-grid mt-3">
-                    <CButton type="submit" color="primary" disabled={submitting}>
-                      {submitting ? 'Enviando...' : 'Enviar'}
-                    </CButton>
-                  </div>
-                  <div className="mt-3 text-center">
-                    <Link to="/login">Volver al login</Link>
-                  </div>
-                </CForm>
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      </CContainer>
-    </div>
+    <AuthSplitLayout>
+      <CForm onSubmit={handleSubmit(onSubmit)}>
+        <h1 className="mb-2" style={{ color: '#071b63', fontSize: 26, fontWeight: 600 }}>
+          Recuperar contraseña
+        </h1>
+        <p className="mb-4" style={{ color: '#64748b' }}>
+          Recibirás una contraseña temporal por correo.
+        </p>
+
+        <CInputGroup className="mb-3">
+          <CInputGroupText style={{ background: '#fff', color: '#49627f' }}>
+            <CIcon icon={cilEnvelopeClosed} />
+          </CInputGroupText>
+          <CFormInput
+            placeholder="Email"
+            autoComplete="email"
+            invalid={!!errors.email}
+            style={{ minHeight: 56 }}
+            {...register('email')}
+          />
+        </CInputGroup>
+        {errors.email && <div className="text-danger mb-2">{errors.email.message}</div>}
+
+        <CButton
+          className="w-100 border-0 mb-3"
+          type="submit"
+          disabled={submitting}
+          style={{
+            minHeight: 56,
+            borderRadius: 28,
+            background: '#07136d',
+            color: '#ffffff',
+            fontWeight: 700,
+            boxShadow: '0 14px 28px rgba(7, 19, 109, 0.2)',
+          }}
+        >
+          {submitting ? 'Enviando...' : 'Enviar'}
+        </CButton>
+
+        <div className="text-center">
+          <Link to="/login" className="text-decoration-none" style={{ color: '#20466f', fontSize: 14 }}>
+            Volver al login
+          </Link>
+        </div>
+      </CForm>
+    </AuthSplitLayout>
   )
 }
 
