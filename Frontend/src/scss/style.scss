@@ -11,7 +11,10 @@ body {
 // macOS-like light theme polish (default)
 body {
   background: #0b1220;
-  font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .card {
@@ -102,9 +105,9 @@ body {
   position: sticky;
   right: 0;
   z-index: 2;
-  width: 310px;
-  min-width: 310px;
-  max-width: 310px;
+  width: 410px;
+  min-width: 410px;
+  max-width: 410px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: -12px 0 22px rgba(15, 23, 42, 0.08);
   white-space: nowrap;

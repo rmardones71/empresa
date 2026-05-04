@@ -22,7 +22,7 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCheckCircle, cilCloudDownload, cilPencil, cilXCircle, cilPeople } from '@coreui/icons'
+import { cilCheckCircle, cilCloudDownload, cilPencil, cilTrash, cilXCircle, cilPeople } from '@coreui/icons'
 import api from 'src/services/api'
 import UserFormModal from './UserFormModal'
 import { useToast } from 'src/components/ToastProvider'
@@ -82,6 +82,7 @@ const UserManagement = () => {
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const userRole = useSelector((s) => s.auth.user?.role)
   const canExport = isPrivilegedRole(userRole)
+  const canDeleteUsers = userRole === 'Super Admin'
   const sortedItems = useMemo(
     () =>
       sortRows(items, sortBy, sortDir, {
@@ -358,6 +359,21 @@ const UserManagement = () => {
     }
   }
 
+  const deleteUser = async (user) => {
+    const label = user.Username || user.Email || `ID ${user.UserId}`
+    if (!window.confirm(`¿Seguro que deseas eliminar el usuario "${label}"? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/api/users/${user.UserId}`)
+      toast.success('Usuario eliminado')
+      load().catch(() => {})
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'No se pudo eliminar el usuario')
+    }
+  }
+
   return (
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
@@ -527,6 +543,16 @@ const UserManagement = () => {
                       >
                         <CIcon icon={u.IsActive ? cilCheckCircle : cilXCircle} className="me-1" /> Estado
                       </CButton>
+                      {canDeleteUsers && (
+                        <CButton
+                          size="sm"
+                          color="danger"
+                          variant="outline"
+                          onClick={() => deleteUser(u)}
+                        >
+                          <CIcon icon={cilTrash} className="me-1" /> Eliminar
+                        </CButton>
+                      )}
                     </div>
                   </CTableDataCell>
                 </CTableRow>
