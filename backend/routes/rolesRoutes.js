@@ -2,12 +2,25 @@ const express = require('express')
 const { body } = require('express-validator')
 const { authRequired } = require('../middlewares/authMiddleware')
 const { requireRoles } = require('../middlewares/roleMiddleware')
+const { requireSecurityAdmin } = require('../middlewares/permissionMiddleware')
 const controller = require('../controllers/rolesController')
 const { asyncHandler } = require('../utils/asyncHandler')
 
 const router = express.Router()
 
 router.get('/', authRequired, requireRoles('Super Admin', 'Admin'), asyncHandler(controller.listRoles))
+router.get(
+  '/:id/permissions',
+  authRequired,
+  requireSecurityAdmin,
+  asyncHandler(controller.getPermissions),
+)
+router.put(
+  '/:id/permissions',
+  authRequired,
+  requireSecurityAdmin,
+  asyncHandler(controller.savePermissions),
+)
 router.post(
   '/',
   authRequired,

@@ -31,7 +31,10 @@ async function get(req, res) {
 
 async function create(req, res) {
   try {
-    const result = await service.create(req.params.resource, req.body)
+    const result = await service.create(req.params.resource, req.body, {
+      userId: req.user.sub,
+      ipAddress: req.ip,
+    })
     await auditLog({
       userId: req.user.sub,
       actionType: 'COMMERCIAL_CREATE',
@@ -46,7 +49,10 @@ async function create(req, res) {
 
 async function update(req, res) {
   try {
-    const result = await service.update(req.params.resource, req.params.id, req.body)
+    const result = await service.update(req.params.resource, req.params.id, req.body, {
+      userId: req.user.sub,
+      ipAddress: req.ip,
+    })
     await auditLog({
       userId: req.user.sub,
       actionType: 'COMMERCIAL_UPDATE',
@@ -61,7 +67,10 @@ async function update(req, res) {
 
 async function remove(req, res) {
   try {
-    const result = await service.remove(req.params.resource, req.params.id)
+    const result = await service.remove(req.params.resource, req.params.id, {
+      userId: req.user.sub,
+      ipAddress: req.ip,
+    })
     await auditLog({
       userId: req.user.sub,
       actionType: 'COMMERCIAL_DELETE',
@@ -83,4 +92,13 @@ async function lookups(req, res) {
   }
 }
 
-module.exports = { list, get, create, update, remove, lookups }
+async function listChangeLog(req, res) {
+  try {
+    const result = await service.listChangeLog(req.params.resource, req.params.id)
+    return res.json({ items: result })
+  } catch (error) {
+    return sendError(res, error)
+  }
+}
+
+module.exports = { list, get, create, update, remove, lookups, listChangeLog }

@@ -1,9 +1,16 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import {
+  CBadge,
   CButton,
   CCard,
   CCardBody,
   CCardHeader,
+  CFormSwitch,
+  CModal,
+  CModalBody,
+  CModalFooter,
+  CModalHeader,
+  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -23,6 +30,7 @@ import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
 import SortableTableHeader from 'src/components/SortableTableHeader'
 import { sortRows, toggleSort } from 'src/utils/gridSort'
+import { isSecurityAdmin, permissionActions } from 'src/utils/permissions'
 
 const RolesManagement = () => {
   const toast = useToast()
@@ -36,6 +44,12 @@ const RolesManagement = () => {
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
   const [editing, setEditing] = useState(null)
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false)
+  const [permissionRole, setPermissionRole] = useState(null)
+  const [permissionRows, setPermissionRows] = useState([])
+  const [activePermissionGroup, setActivePermissionGroup] = useState('')
+  const [loadingPermissions, setLoadingPermissions] = useState(false)
+  const [savingPermissions, setSavingPermissions] = useState(false)
   const [sortBy, setSortBy] = useState('roleId')
   const [sortDir, setSortDir] = useState('asc')
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -57,6 +71,7 @@ const RolesManagement = () => {
   const role = useSelector((s) => s.auth.user?.role)
   const canExport = isPrivilegedRole(role)
   const canManageRoles = role === 'Super Admin'
+  const canManagePermissions = isSecurityAdmin(role)
 
   const total = roles.length
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
@@ -88,9 +103,11 @@ const RolesManagement = () => {
       { key: 'isActive', label: 'Activo' },
       { key: 'createdAt', label: 'Creado' },
     ]
-    if (canManageRoles) cols.push({ key: 'actions', label: 'Acciones', sortable: false })
+    if (canManageRoles || canManagePermissions) {
+      cols.push({ key: 'actions', label: 'Acciones', sortable: false })
+    }
     return cols
-  }, [canManageRoles])
+  }, [canManagePermissions, canManageRoles])
 
   const handleSort = (key) => {
     const next = toggleSort({ key, sortBy, sortDir })
@@ -155,6 +172,86 @@ const RolesManagement = () => {
       setSaving(false)
     }
   }
+
+  const openPermissions = async (row) => {
+    if (!canManagePermissions) return
+    setPermissionRole({ roleId: row.RoleId, roleName: row.RoleName })
+    setPermissionRows([])
+    setActivePermissionGroup('')
+    setPermissionModalOpen(true)
+    setLoadingPermissions(true)
+    try {
+      const res = await api.get(`/api/roles/${row.RoleId}/permissions`)
+      const rows = res.data.items || []
+      setPermissionRole(res.data.role)
+      setPermissionRows(rows)
+      setActivePermissionGroup(rows[0]?.moduleGroup || 'Otros')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'No se pudo cargar matriz de permisos')
+      setPermissionModalOpen(false)
+    } finally {
+      setLoadingPermissions(false)
+    }
+  }
+
+  const closePermissions = () => {
+    if (savingPermissions) return
+    setPermissionModalOpen(false)
+    setPermissionRole(null)
+    setPermissionRows([])
+    setActivePermissionGroup('')
+  }
+
+  const togglePermission = (moduleKey, action) => {
+    if (permissionRole?.roleName === 'Super Admin') return
+    setPermissionRows((prev) =>
+      prev.map((item) =>
+        item.moduleKey === moduleKey ? { ...item, [action]: !item[action] } : item,
+      ),
+    )
+  }
+
+  const savePermissions = async () => {
+    if (!permissionRole?.roleId) return
+    setSavingPermissions(true)
+    try {
+      const payload = {
+        permissions: permissionRows.map((item) => ({
+          moduleKey: item.moduleKey,
+          create: !!item.create,
+          read: !!item.read,
+          write: !!item.write,
+          delete: !!item.delete,
+        })),
+      }
+      const res = await api.put(`/api/roles/${permissionRole.roleId}/permissions`, payload)
+      setPermissionRows(res.data.items || [])
+      toast.success('Matriz de permisos actualizada')
+      setPermissionModalOpen(false)
+      setPermissionRole(null)
+      setPermissionRows([])
+      setActivePermissionGroup('')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'No se pudo guardar matriz de permisos')
+    } finally {
+      setSavingPermissions(false)
+    }
+  }
+
+  const groupedPermissionRows = useMemo(() => {
+    const groups = new Map()
+    permissionRows.forEach((item) => {
+      const group = item.moduleGroup || 'Otros'
+      if (!groups.has(group)) groups.set(group, [])
+      groups.get(group).push(item)
+    })
+    return Array.from(groups.entries())
+  }, [permissionRows])
+
+  const activePermissionRows = useMemo(() => {
+    const selected = groupedPermissionRows.find(([group]) => group === activePermissionGroup)
+    return selected?.[1] || groupedPermissionRows[0]?.[1] || []
+  }, [activePermissionGroup, groupedPermissionRows])
 
   const exportExcel = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
     setExporting(true)
@@ -291,16 +388,28 @@ const RolesManagement = () => {
                       {r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString() : '-'}
                     </CTableDataCell>
                   )}
-                  {canManageRoles && (
+                  {(canManageRoles || canManagePermissions) && (
                     <CTableDataCell className="d-flex gap-2 actions-cell">
-                      <CButton
-                        size="sm"
-                        color="secondary"
-                        variant="outline"
-                        onClick={() => openEdit(r)}
-                      >
-                        <CIcon icon={cilPencil} className="me-1" /> Editar
-                      </CButton>
+                      {canManagePermissions && (
+                        <CButton
+                          size="sm"
+                          color="primary"
+                          variant="outline"
+                          onClick={() => openPermissions(r)}
+                        >
+                          <CIcon icon={cilShieldAlt} className="me-1" /> Matriz
+                        </CButton>
+                      )}
+                      {canManageRoles && (
+                        <CButton
+                          size="sm"
+                          color="secondary"
+                          variant="outline"
+                          onClick={() => openEdit(r)}
+                        >
+                          <CIcon icon={cilPencil} className="me-1" /> Editar
+                        </CButton>
+                      )}
                     </CTableDataCell>
                   )}
                 </CTableRow>
@@ -349,6 +458,134 @@ const RolesManagement = () => {
           submitting={exporting}
           format={exportFormat}
         />
+
+        <CModal
+          size="xl"
+          alignment="center"
+          visible={permissionModalOpen}
+          onClose={closePermissions}
+          backdrop="static"
+        >
+          <CModalHeader>
+            <CModalTitle className="d-flex align-items-center gap-2">
+              <CIcon icon={cilShieldAlt} />
+              Matriz de permisos
+              {permissionRole?.roleName && (
+                <CBadge color="secondary">{permissionRole.roleName}</CBadge>
+              )}
+            </CModalTitle>
+          </CModalHeader>
+          <CModalBody>
+            <div className="permission-matrix-toolbar">
+              <span>Selecciona las acciones permitidas por rol y modulo.</span>
+              {permissionRole?.roleName === 'Super Admin' && (
+                <CBadge color="success">Acceso total protegido</CBadge>
+              )}
+            </div>
+            <div className="permission-matrix-menu">
+              {groupedPermissionRows.map(([group, rows]) => (
+                <CButton
+                  key={group}
+                  color={group === activePermissionGroup ? 'primary' : 'secondary'}
+                  variant={group === activePermissionGroup ? undefined : 'outline'}
+                  size="sm"
+                  onClick={() => setActivePermissionGroup(group)}
+                  disabled={loadingPermissions}
+                >
+                  {group}
+                  <CBadge
+                    color={group === activePermissionGroup ? 'light' : 'secondary'}
+                    className="ms-2"
+                  >
+                    {rows.length}
+                  </CBadge>
+                </CButton>
+              ))}
+            </div>
+            <div className="macos-grid permission-matrix-grid">
+              <CTable hover responsive>
+                <CTableHead>
+                  <CTableRow>
+                    <CTableDataCell as="th">Modulo</CTableDataCell>
+                    {permissionActions.map((action) => (
+                      <CTableDataCell as="th" key={action.key} className="text-center">
+                        {action.label}
+                      </CTableDataCell>
+                    ))}
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {loadingPermissions && (
+                    <CTableRow>
+                      <CTableDataCell
+                        colSpan={permissionActions.length + 1}
+                        className="text-center"
+                      >
+                        Cargando permisos...
+                      </CTableDataCell>
+                    </CTableRow>
+                  )}
+                  {!loadingPermissions &&
+                    activePermissionRows.map((item) => (
+                      <CTableRow key={item.moduleKey}>
+                        <CTableDataCell>
+                          <div className="permission-module-name">
+                            <strong>{item.moduleName}</strong>
+                            <span>{item.menuPath || item.moduleKey}</span>
+                          </div>
+                        </CTableDataCell>
+                        {permissionActions.map((action) => (
+                          <CTableDataCell key={action.key} className="text-center">
+                            <CFormSwitch
+                              className="permission-switch"
+                              checked={!!item[action.key]}
+                              disabled={
+                                savingPermissions ||
+                                loadingPermissions ||
+                                permissionRole?.roleName === 'Super Admin'
+                              }
+                              onChange={() => togglePermission(item.moduleKey, action.key)}
+                            />
+                          </CTableDataCell>
+                        ))}
+                      </CTableRow>
+                    ))}
+                  {!loadingPermissions && activePermissionRows.length === 0 && (
+                    <CTableRow>
+                      <CTableDataCell
+                        colSpan={permissionActions.length + 1}
+                        className="text-center text-body-secondary"
+                      >
+                        Sin modulos para este grupo
+                      </CTableDataCell>
+                    </CTableRow>
+                  )}
+                </CTableBody>
+              </CTable>
+            </div>
+          </CModalBody>
+          <CModalFooter>
+            <CButton
+              color="secondary"
+              variant="outline"
+              onClick={closePermissions}
+              disabled={savingPermissions}
+            >
+              Cancelar
+            </CButton>
+            <CButton
+              color="primary"
+              onClick={savePermissions}
+              disabled={
+                savingPermissions ||
+                loadingPermissions ||
+                permissionRole?.roleName === 'Super Admin'
+              }
+            >
+              {savingPermissions ? 'Guardando...' : 'Guardar permisos'}
+            </CButton>
+          </CModalFooter>
+        </CModal>
       </CCardBody>
     </CCard>
   )

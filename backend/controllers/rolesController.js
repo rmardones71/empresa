@@ -1,6 +1,10 @@
 const { validationResult } = require('express-validator')
 const { query } = require('../database/db')
 const { auditLog } = require('../services/auditService')
+const {
+  getRolePermissions,
+  updateRolePermissions,
+} = require('../services/permissionService')
 
 async function listRoles(req, res) {
   const dateFrom = req.query.dateFrom ? new Date(String(req.query.dateFrom)) : null
@@ -65,4 +69,33 @@ async function deleteRole(req, res) {
   return res.json({ message: 'Deleted' })
 }
 
-module.exports = { listRoles, createRole, updateRole, deleteRole }
+async function getPermissions(req, res) {
+  const id = Number(req.params.id)
+  const result = await getRolePermissions(id)
+  return res.json(result)
+}
+
+async function savePermissions(req, res) {
+  const ipAddress = req.ip
+  const id = Number(req.params.id)
+  const result = await updateRolePermissions(id, req.body?.permissions || [], {
+    userId: req.user.sub,
+    role: req.user.role,
+  })
+  await auditLog({
+    userId: req.user.sub,
+    actionType: 'ROLES_PERMISSIONS_UPDATE',
+    description: `Updated permissions roleId=${id}`,
+    ipAddress,
+  })
+  return res.json(result)
+}
+
+module.exports = {
+  listRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  getPermissions,
+  savePermissions,
+}

@@ -43,6 +43,17 @@ const resources = {
     fields: [{ name: 'estado_vital', type: 'string' }],
     dependencies: [{ table: 'dbo.contrato', field: 'id_estado_vital', label: 'contratos' }],
   },
+  estados_ctr: {
+    table: 'dbo.estado_ctr',
+    idField: 'id_estado_ctr',
+    idType: 'int',
+    label: 'Estados de contrato',
+    displayField: 'estado_ctr',
+    searchFields: ['estado_ctr'],
+    required: ['estado_ctr'],
+    fields: [{ name: 'estado_ctr', type: 'string' }],
+    dependencies: [{ table: 'dbo.contrato', field: 'id_estado_ctr', label: 'contratos' }],
+  },
   tipo_servicios: {
     table: 'dbo.tipo_servicio',
     idField: 'id_tipo_servicio',
@@ -85,7 +96,12 @@ const resources = {
     searchFields: ['rut', 'razon_social', 'nombre_fantasia', 'giro', 'rubro'],
     required: ['rut', 'razon_social', 'id_categoria'],
     fields: [
-      { name: 'rut', type: 'string', includeOnUpdate: false },
+      {
+        name: 'rut',
+        type: 'string',
+        validation: 'chileRut',
+        validationLabel: 'RUT empresa',
+      },
       { name: 'razon_social', type: 'string' },
       { name: 'nombre_fantasia', type: 'string' },
       { name: 'giro', type: 'string' },
@@ -114,7 +130,7 @@ const resources = {
       { name: 'rut_empresa', type: 'string' },
       { name: 'id_tipo_contacto', type: 'int' },
       { name: 'id_estado_contacto', type: 'int' },
-      { name: 'rut', type: 'string' },
+      { name: 'rut', type: 'string', validation: 'chileRut', validationLabel: 'RUT contacto' },
       { name: 'nombre', type: 'string' },
       { name: 'cargo', type: 'string' },
       { name: 'area', type: 'string' },
@@ -137,16 +153,16 @@ const resources = {
     idType: 'int',
     label: 'Contratos',
     displayField: 'titulo',
-    searchFields: ['titulo', 'estado', 'medio_pago'],
+    searchFields: ['titulo', 'medio_pago'],
     required: ['rut_empresa', 'id_estado_vital', 'titulo'],
     fields: [
       { name: 'rut_empresa', type: 'string' },
       { name: 'id_estado_vital', type: 'int' },
+      { name: 'id_estado_ctr', type: 'int' },
       { name: 'titulo', type: 'string' },
       { name: 'fecha_firma', type: 'date' },
       { name: 'fecha_inicio', type: 'date' },
       { name: 'fecha_termino', type: 'date' },
-      { name: 'estado', type: 'string' },
       { name: 'fecha_facturacion', type: 'date' },
       { name: 'medio_pago', type: 'string' },
       { name: 'reajustable', type: 'boolean' },
@@ -156,6 +172,7 @@ const resources = {
     joins: [
       { table: 'dbo.empresa', alias: 'emp', local: 'rut_empresa', foreign: 'rut', field: 'razon_social', as: 'empresa' },
       { table: 'dbo.estado_vital', alias: 'ev', local: 'id_estado_vital', foreign: 'id_estado_vital', field: 'estado_vital', as: 'estado_vital' },
+      { table: 'dbo.estado_ctr', alias: 'ectr', local: 'id_estado_ctr', foreign: 'id_estado_ctr', field: 'estado_ctr', as: 'estado_ctr' },
     ],
     dependencies: [
       { table: 'dbo.linea', field: 'id_contrato', label: 'lineas' },
@@ -242,6 +259,7 @@ const lookupResources = [
   'tipo_contactos',
   'estado_contactos',
   'estado_vitales',
+  'estados_ctr',
   'tipo_servicios',
   'tipo_tarifas',
   'frecuencias',
@@ -249,6 +267,18 @@ const lookupResources = [
   'contactos',
   'contratos',
 ]
+
+const auditFields = [
+  { name: 'usuario_creacion_id', type: 'int', readOnly: true },
+  { name: 'fecha_creacion', type: 'dateTime', readOnly: true },
+  { name: 'fecha_actualizacion', type: 'dateTime', readOnly: true },
+]
+
+Object.values(resources).forEach((resource) => {
+  resource.audit = true
+  resource.virtualFields = ['usuario_creacion']
+  resource.fields = [...resource.fields, ...auditFields]
+})
 
 function getResource(name) {
   return resources[name] || null

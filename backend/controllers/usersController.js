@@ -3,6 +3,7 @@ const { validationResult } = require('express-validator')
 const { env } = require('../config/env')
 const { query } = require('../database/db')
 const { auditLog } = require('../services/auditService')
+const { getUserPermissionMap } = require('../services/permissionService')
 
 async function listUsers(req, res) {
   const page = Math.max(1, Number(req.query.page || 1))
@@ -223,6 +224,7 @@ async function getMe(req, res) {
   )
   const user = result.recordset[0]
   if (!user) return res.status(404).json({ message: 'User not found' })
+  const permissions = await getUserPermissionMap(user.UserId)
   return res.json({
     userId: user.UserId,
     username: user.Username,
@@ -231,6 +233,7 @@ async function getMe(req, res) {
     lastName: user.LastName,
     photoDataUrl: user.PhotoDataUrl,
     role: user.Role,
+    permissions,
     twoFactorEnabled: !!user.TwoFactorEnabled,
     lastLogin: user.LastLogin,
     createdAt: user.CreatedAt,
@@ -270,6 +273,7 @@ async function updateMe(req, res) {
   )
   const user = result.recordset[0]
   if (!user) return res.status(404).json({ message: 'User not found' })
+  const permissions = await getUserPermissionMap(user.UserId)
 
   return res.json({
     message: 'Updated',
@@ -281,6 +285,7 @@ async function updateMe(req, res) {
       lastName: user.LastName,
       photoDataUrl: user.PhotoDataUrl,
       role: user.Role,
+      permissions,
       tempPassword: !!user.TempPassword,
       twoFactorEnabled: !!user.TwoFactorEnabled,
     },

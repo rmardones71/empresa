@@ -3,6 +3,7 @@ const { validationResult } = require('express-validator')
 const { env } = require('../config/env')
 const { query } = require('../database/db')
 const { auditLog } = require('../services/auditService')
+const { getUserPermissionMap } = require('../services/permissionService')
 const { sendMail } = require('../services/mailService')
 const { randomNumericCode6, randomTempPassword } = require('../utils/random')
 const { signAccessToken, signRefreshToken, sha256, verifyRefreshToken } = require('../utils/tokens')
@@ -138,6 +139,8 @@ async function login(req, res) {
   })
 
   await auditLog({ userId: user.UserId, actionType: 'LOGIN', description: 'Login success', ipAddress })
+  const permissions = await getUserPermissionMap(user.UserId)
+
   return res.json({
     requires2fa: false,
     accessToken,
@@ -149,6 +152,7 @@ async function login(req, res) {
       firstName: user.FirstName,
       lastName: user.LastName,
       role: user.RoleName,
+      permissions,
       tempPassword: !!user.TempPassword,
       twoFactorEnabled: !!user.TwoFactorEnabled,
     },
@@ -204,6 +208,8 @@ async function verify2fa(req, res) {
   )
 
   await auditLog({ userId: user.UserId, actionType: 'LOGIN', description: 'Login success (2FA)', ipAddress })
+  const permissions = await getUserPermissionMap(user.UserId)
+
   return res.json({
     accessToken,
     refreshToken,
@@ -214,6 +220,7 @@ async function verify2fa(req, res) {
       firstName: user.FirstName,
       lastName: user.LastName,
       role: user.RoleName,
+      permissions,
       tempPassword: !!user.TempPassword,
       twoFactorEnabled: true,
     },

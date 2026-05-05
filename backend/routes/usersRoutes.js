@@ -1,7 +1,7 @@
 const express = require('express')
 const { body } = require('express-validator')
 const { authRequired } = require('../middlewares/authMiddleware')
-const { requireRoles } = require('../middlewares/roleMiddleware')
+const { requirePermission } = require('../middlewares/permissionMiddleware')
 const controller = require('../controllers/usersController')
 const { asyncHandler } = require('../utils/asyncHandler')
 
@@ -9,8 +9,8 @@ const router = express.Router()
 
 router.get('/me', authRequired, asyncHandler(controller.getMe))
 
-router.get('/', authRequired, requireRoles('Super Admin', 'Admin'), asyncHandler(controller.listUsers))
-router.get('/:id', authRequired, requireRoles('Super Admin', 'Admin'), asyncHandler(controller.getUser))
+router.get('/', authRequired, requirePermission('admin.users', 'read'), asyncHandler(controller.listUsers))
+router.get('/:id', authRequired, requirePermission('admin.users', 'read'), asyncHandler(controller.getUser))
 
 router.put(
   '/me',
@@ -27,7 +27,7 @@ router.put(
 router.post(
   '/',
   authRequired,
-  requireRoles('Super Admin', 'Admin'),
+  requirePermission('admin.users', 'create'),
   [
     body('username').isString().trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
@@ -41,7 +41,7 @@ router.post(
 router.put(
   '/:id',
   authRequired,
-  requireRoles('Super Admin', 'Admin'),
+  requirePermission('admin.users', 'write'),
   [
     body('username').isString().trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
@@ -51,12 +51,12 @@ router.put(
   asyncHandler(controller.updateUser),
 )
 
-router.delete('/:id', authRequired, requireRoles('Super Admin'), asyncHandler(controller.deleteUser))
-router.patch('/:id/toggle-2fa', authRequired, requireRoles('Super Admin', 'Admin'), asyncHandler(controller.toggle2fa))
+router.delete('/:id', authRequired, requirePermission('admin.users', 'delete'), asyncHandler(controller.deleteUser))
+router.patch('/:id/toggle-2fa', authRequired, requirePermission('admin.users', 'write'), asyncHandler(controller.toggle2fa))
 router.patch(
   '/:id/toggle-status',
   authRequired,
-  requireRoles('Super Admin', 'Admin'),
+  requirePermission('admin.users', 'write'),
   asyncHandler(controller.toggleStatus),
 )
 

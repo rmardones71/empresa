@@ -9,9 +9,21 @@ export const resourceOrder = [
   'tipo_contactos',
   'estado_contactos',
   'estado_vitales',
+  'estados_ctr',
   'tipo_servicios',
   'tipo_tarifas',
   'frecuencias',
+]
+
+export const auditFields = [
+  { name: 'usuario_creacion', label: 'Creado por', type: 'text', readOnly: true },
+  { name: 'fecha_creacion', label: 'Fecha creacion', type: 'datetime-local', readOnly: true },
+  {
+    name: 'fecha_actualizacion',
+    label: 'Ultima actualizacion',
+    type: 'datetime-local',
+    readOnly: true,
+  },
 ]
 
 export const resources = {
@@ -23,16 +35,21 @@ export const resources = {
     defaultSort: 'rut',
     required: ['rut', 'razon_social', 'id_categoria'],
     listFields: ['rut', 'razon_social', 'nombre_fantasia', 'rubro', 'categoria'],
+    formSections: [
+      {
+        title: 'Identificacion',
+        icon: 'building',
+        fields: ['rut', 'id_categoria', 'razon_social', 'nombre_fantasia'],
+      },
+      { title: 'Clasificacion', icon: 'industry', fields: ['giro', 'rubro', 'sitio_web'] },
+      { title: 'Ubicacion', icon: 'map', fields: ['direccion', 'region', 'comuna'] },
+    ],
     fields: [
-      { name: 'rut', label: 'RUT empresa', type: 'text', required: true, createOnly: true },
+      { name: 'rut', label: 'RUT empresa', type: 'chile-rut', required: true },
       { name: 'razon_social', label: 'Razon social', type: 'text', required: true },
       { name: 'nombre_fantasia', label: 'Nombre fantasia', type: 'text' },
       { name: 'giro', label: 'Giro', type: 'text' },
       { name: 'rubro', label: 'Rubro', type: 'text' },
-      { name: 'direccion', label: 'Direccion', type: 'text' },
-      { name: 'region', label: 'Region', type: 'chile-region' },
-      { name: 'comuna', label: 'Comuna', type: 'chile-comuna', dependsOn: 'region' },
-      { name: 'sitio_web', label: 'Sitio web', type: 'text' },
       {
         name: 'id_categoria',
         label: 'Categoria',
@@ -40,6 +57,10 @@ export const resources = {
         lookup: 'categorias',
         required: true,
       },
+      { name: 'direccion', label: 'Direccion', type: 'text' },
+      { name: 'region', label: 'Region', type: 'chile-region' },
+      { name: 'comuna', label: 'Comuna', type: 'chile-comuna', dependsOn: 'region' },
+      { name: 'sitio_web', label: 'Sitio web', type: 'text' },
     ],
   },
   contactos: {
@@ -50,6 +71,23 @@ export const resources = {
     defaultSort: 'id_contacto',
     required: ['rut_empresa', 'id_tipo_contacto', 'id_estado_contacto', 'nombre'],
     listFields: ['id_contacto', 'nombre', 'empresa', 'tipo_contacto', 'estado_contacto', 'email'],
+    formSections: [
+      {
+        title: 'Empresa y estado',
+        icon: 'building',
+        fields: ['rut_empresa', 'id_tipo_contacto', 'id_estado_contacto', 'estado'],
+      },
+      {
+        title: 'Datos del contacto',
+        icon: 'contact',
+        fields: ['nombre', 'rut', 'cargo', 'area', 'rol'],
+      },
+      {
+        title: 'Comunicacion',
+        icon: 'phone',
+        fields: ['email', 'telefono', 'autoriza_comunicaciones'],
+      },
+    ],
     fields: [
       { name: 'rut_empresa', label: 'Empresa', type: 'select', lookup: 'empresas', required: true },
       {
@@ -66,7 +104,7 @@ export const resources = {
         lookup: 'estado_contactos',
         required: true,
       },
-      { name: 'rut', label: 'RUT contacto', type: 'text' },
+      { name: 'rut', label: 'RUT contacto', type: 'chile-rut' },
       { name: 'nombre', label: 'Nombre', type: 'text', required: true },
       { name: 'cargo', label: 'Cargo', type: 'text' },
       { name: 'area', label: 'Area', type: 'text' },
@@ -89,8 +127,26 @@ export const resources = {
       'titulo',
       'empresa',
       'estado_vital',
+      'estado_ctr',
       'fecha_inicio',
       'fecha_termino',
+    ],
+    formSections: [
+      {
+        title: 'Identificacion',
+        icon: 'description',
+        fields: ['rut_empresa', 'id_estado_vital', 'id_estado_ctr', 'titulo'],
+      },
+      {
+        title: 'Fechas',
+        icon: 'calendar',
+        fields: ['fecha_firma', 'fecha_inicio', 'fecha_termino', 'fecha_facturacion'],
+      },
+      {
+        title: 'Condiciones comerciales',
+        icon: 'money',
+        fields: ['medio_pago', 'reajustable', 'multa', 'requiere_oc'],
+      },
     ],
     fields: [
       { name: 'rut_empresa', label: 'Empresa', type: 'select', lookup: 'empresas', required: true },
@@ -101,11 +157,17 @@ export const resources = {
         lookup: 'estado_vitales',
         required: true,
       },
+      {
+        name: 'id_estado_ctr',
+        label: 'Estado contrato',
+        type: 'select',
+        lookup: 'estados_ctr',
+      },
+      { name: 'estado_ctr', label: 'Estado contrato', type: 'text', readOnly: true },
       { name: 'titulo', label: 'Titulo', type: 'text', required: true },
       { name: 'fecha_firma', label: 'Fecha firma', type: 'date' },
       { name: 'fecha_inicio', label: 'Fecha inicio', type: 'date' },
       { name: 'fecha_termino', label: 'Fecha termino', type: 'date' },
-      { name: 'estado', label: 'Estado', type: 'text' },
       { name: 'fecha_facturacion', label: 'Fecha facturacion', type: 'date' },
       { name: 'medio_pago', label: 'Medio pago', type: 'text' },
       { name: 'reajustable', label: 'Reajustable', type: 'boolean' },
@@ -121,6 +183,30 @@ export const resources = {
     defaultSort: 'id_linea',
     required: ['id_contrato', 'id_tipo_servicio', 'id_tipo_tarifa', 'id_frecuencia', 'titulo'],
     listFields: ['id_linea', 'titulo', 'contrato', 'tipo_servicio', 'tipo_tarifa', 'frecuencia'],
+    formSections: [
+      {
+        title: 'Contrato y servicio',
+        icon: 'list',
+        fields: ['id_contrato', 'titulo', 'id_tipo_servicio', 'id_tipo_tarifa', 'id_frecuencia'],
+      },
+      {
+        title: 'Ciclo de facturacion',
+        icon: 'calendar',
+        fields: ['fecha_inicio', 'fecha_inicio_ciclo_facturacion'],
+      },
+      {
+        title: 'Tarifas',
+        icon: 'money',
+        fields: [
+          'tarifa_fija',
+          'moneda_fijo',
+          'tarifa_variable',
+          'moneda_variable',
+          'unidad_variable',
+          'iva',
+        ],
+      },
+    ],
     fields: [
       {
         name: 'id_contrato',
@@ -169,6 +255,14 @@ export const resources = {
     defaultSort: 'id_caso',
     required: ['id_contacto', 'id_contrato', 'titulo'],
     listFields: ['id_caso', 'titulo', 'contacto', 'contrato'],
+    formSections: [
+      {
+        title: 'Relacion',
+        icon: 'contact',
+        fields: ['id_contacto', 'id_contrato', 'titulo'],
+      },
+      { title: 'Detalle del caso', icon: 'notes', fields: ['texto', 'relato', 'adjuntos'] },
+    ],
     fields: [
       {
         name: 'id_contacto',
@@ -198,6 +292,18 @@ export const resources = {
     defaultSort: 'id_documento',
     required: ['id_contrato', 'nombre'],
     listFields: ['id_documento', 'nombre', 'contrato', 'tipo_documento', 'version', 'estado'],
+    formSections: [
+      {
+        title: 'Documento',
+        icon: 'file',
+        fields: ['id_contrato', 'tipo_documento', 'nombre', 'version', 'estado'],
+      },
+      {
+        title: 'Gestion',
+        icon: 'folder',
+        fields: ['responsable', 'descripcion', 'archivo', 'fecha_carga'],
+      },
+    ],
     fields: [
       {
         name: 'id_contrato',
@@ -256,6 +362,16 @@ export const resources = {
     listFields: ['id_estado_vital', 'estado_vital'],
     fields: [{ name: 'estado_vital', label: 'Estado vital', type: 'text', required: true }],
   },
+  estados_ctr: {
+    title: 'Estados de contrato',
+    singular: 'Estado de contrato',
+    endpoint: 'estados_ctr',
+    idField: 'id_estado_ctr',
+    defaultSort: 'id_estado_ctr',
+    required: ['estado_ctr'],
+    listFields: ['id_estado_ctr', 'estado_ctr'],
+    fields: [{ name: 'estado_ctr', label: 'Estado contrato', type: 'text', required: true }],
+  },
   tipo_servicios: {
     title: 'Tipos de servicio',
     singular: 'Tipo de servicio',
@@ -291,5 +407,7 @@ export const resources = {
 export const getFieldLabel = (config, fieldName) => {
   const field = config.fields.find((item) => item.name === fieldName)
   if (field) return field.label
+  const auditField = auditFields.find((item) => item.name === fieldName)
+  if (auditField) return auditField.label
   return fieldName
 }

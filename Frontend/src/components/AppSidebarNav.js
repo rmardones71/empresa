@@ -7,14 +7,14 @@ import 'simplebar-react/dist/simplebar.min.css'
 
 import { CBadge, CNavLink, CSidebarNav } from '@coreui/react'
 import { useSelector } from 'react-redux'
+import { hasPermission } from 'src/utils/permissions'
 
 export const AppSidebarNav = ({ items }) => {
-  const role = useSelector((s) => s.auth.user?.role)
+  const user = useSelector((s) => s.auth.user)
 
   const isAllowed = (item) => {
-    if (!item?.roles || item.roles.length === 0) return true
-    if (!role) return false
-    return item.roles.includes(role)
+    if (item?.items?.length) return item.items.some(isAllowed)
+    return hasPermission(user, item?.permissionKey, 'read')
   }
   const navLink = (name, icon, badge, indent = false) => {
     return (
@@ -37,7 +37,7 @@ export const AppSidebarNav = ({ items }) => {
   }
 
   const navItem = (item, index, indent = false) => {
-    const { component, name, badge, icon, ...rest } = item
+    const { component, name, badge, icon, permissionKey, ...rest } = item
     const Component = component
     if (!Component) return null
     return (
@@ -58,7 +58,7 @@ export const AppSidebarNav = ({ items }) => {
   }
 
   const navGroup = (item, index) => {
-    const { component, name, icon, items, to, ...rest } = item
+    const { component, name, icon, items, to, permissionKey, ...rest } = item
     const Component = component
     if (!isAllowed(item)) return null
     if (!Component) return null

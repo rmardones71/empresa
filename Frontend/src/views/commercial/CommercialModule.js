@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, Navigate } from 'react-router-dom'
 import {
+  CAlert,
   CButton,
   CButtonGroup,
   CCard,
@@ -8,6 +9,7 @@ import {
   CCardHeader,
   CCol,
   CForm,
+  CFormFeedback,
   CFormInput,
   CFormLabel,
   CFormSelect,
@@ -25,15 +27,56 @@ import {
   CTableHead,
   CTableRow,
 } from '@coreui/react'
+import { useSelector } from 'react-redux'
 import CIcon from '@coreui/icons-react'
-import { cilBriefcase, cilPencil, cilPlus, cilSearch, cilTrash, cilZoom } from '@coreui/icons'
+import {
+  cilAddressBook,
+  cilBadge,
+  cilBriefcase,
+  cilBuilding,
+  cilCalendar,
+  cilCheckCircle,
+  cilContact,
+  cilCreditCard,
+  cilDescription,
+  cilDollar,
+  cilEnvelopeClosed,
+  cilFile,
+  cilFolder,
+  cilGlobeAlt,
+  cilHome,
+  cilIndustry,
+  cilLink,
+  cilList,
+  cilHistory,
+  cilLocationPin,
+  cilMap,
+  cilMoney,
+  cilNotes,
+  cilPaperclip,
+  cilPencil,
+  cilPhone,
+  cilPlus,
+  cilSearch,
+  cilSettings,
+  cilShieldAlt,
+  cilStorage,
+  cilTag,
+  cilTags,
+  cilTask,
+  cilTrash,
+  cilUser,
+  cilZoom,
+} from '@coreui/icons'
 import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
 import GridPaginationBar from 'src/components/GridPaginationBar'
 import SortableTableHeader from 'src/components/SortableTableHeader'
 import { runOnEnter } from 'src/utils/gridKeyboard'
 import { chileRegions, getComunasByRegion } from './chileLocations'
-import { getFieldLabel, resourceOrder, resources } from './commercialConfig'
+import { auditFields, getFieldLabel, resourceOrder, resources } from './commercialConfig'
+import { formatRut, getRutStatus } from './rutChile'
+import { commercialPermissionKey, hasPermission } from 'src/utils/permissions'
 
 const emptyFromConfig = (config) =>
   config.fields
@@ -56,11 +99,140 @@ const normalizeDateValue = (value, type) => {
   return value
 }
 
+const formIconMap = {
+  addressBook: cilAddressBook,
+  badge: cilBadge,
+  briefcase: cilBriefcase,
+  building: cilBuilding,
+  calendar: cilCalendar,
+  check: cilCheckCircle,
+  contact: cilContact,
+  creditCard: cilCreditCard,
+  description: cilDescription,
+  dollar: cilDollar,
+  email: cilEnvelopeClosed,
+  file: cilFile,
+  folder: cilFolder,
+  globe: cilGlobeAlt,
+  home: cilHome,
+  industry: cilIndustry,
+  link: cilLink,
+  list: cilList,
+  location: cilLocationPin,
+  map: cilMap,
+  money: cilMoney,
+  notes: cilNotes,
+  paperclip: cilPaperclip,
+  phone: cilPhone,
+  settings: cilSettings,
+  shield: cilShieldAlt,
+  storage: cilStorage,
+  tag: cilTag,
+  tags: cilTags,
+  task: cilTask,
+  user: cilUser,
+}
+
+const fieldIconMap = {
+  rut: cilBadge,
+  rut_empresa: cilBuilding,
+  razon_social: cilBuilding,
+  nombre_fantasia: cilTag,
+  giro: cilIndustry,
+  rubro: cilTags,
+  direccion: cilHome,
+  region: cilMap,
+  comuna: cilLocationPin,
+  sitio_web: cilGlobeAlt,
+  id_categoria: cilTags,
+  id_tipo_contacto: cilAddressBook,
+  id_estado_contacto: cilCheckCircle,
+  nombre: cilUser,
+  cargo: cilBriefcase,
+  area: cilBuilding,
+  email: cilEnvelopeClosed,
+  telefono: cilPhone,
+  rol: cilShieldAlt,
+  autoriza_comunicaciones: cilCheckCircle,
+  estado: cilCheckCircle,
+  id_estado_vital: cilTask,
+  id_estado_ctr: cilCheckCircle,
+  titulo: cilDescription,
+  fecha_firma: cilCalendar,
+  fecha_inicio: cilCalendar,
+  fecha_termino: cilCalendar,
+  fecha_facturacion: cilCalendar,
+  medio_pago: cilCreditCard,
+  reajustable: cilDollar,
+  multa: cilMoney,
+  requiere_oc: cilTask,
+  id_contrato: cilDescription,
+  id_tipo_servicio: cilSettings,
+  id_tipo_tarifa: cilMoney,
+  id_frecuencia: cilCalendar,
+  fecha_inicio_ciclo_facturacion: cilCalendar,
+  tarifa_fija: cilDollar,
+  tarifa_variable: cilDollar,
+  moneda_fijo: cilMoney,
+  moneda_variable: cilMoney,
+  unidad_variable: cilList,
+  iva: cilCheckCircle,
+  id_contacto: cilContact,
+  texto: cilNotes,
+  adjuntos: cilPaperclip,
+  relato: cilNotes,
+  tipo_documento: cilFile,
+  descripcion: cilNotes,
+  version: cilStorage,
+  responsable: cilUser,
+  archivo: cilLink,
+  fecha_carga: cilCalendar,
+  usuario_creacion: cilUser,
+  fecha_creacion: cilCalendar,
+  fecha_actualizacion: cilHistory,
+  categoria: cilTags,
+  tipo: cilAddressBook,
+  estado_contacto: cilCheckCircle,
+  estado_vital: cilTask,
+  estado_ctr: cilCheckCircle,
+  tipo_servicio: cilSettings,
+  tipo_tarifa: cilMoney,
+  frecuencia: cilCalendar,
+}
+
+const getFieldIcon = (field) => fieldIconMap[field.name] || formIconMap[field.icon] || cilList
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString('es-CL', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const formatFieldValue = (fieldName, value) => {
+  if (['fecha_creacion', 'fecha_actualizacion', 'fecha_cambio'].includes(fieldName)) {
+    return formatDateTime(value)
+  }
+  return formatValue(value)
+}
+
 const CommercialModule = () => {
   const location = useLocation()
   const toast = useToast()
   const resourceKey = location.pathname.split('/').filter(Boolean).pop()
   const config = resources[resourceKey]
+  const user = useSelector((s) => s.auth.user)
+  const moduleKey = commercialPermissionKey(resourceKey)
+  const canCreate = hasPermission(user, moduleKey, 'create')
+  const canRead = hasPermission(user, moduleKey, 'read')
+  const canWrite = hasPermission(user, moduleKey, 'write')
+  const canDelete = hasPermission(user, moduleKey, 'delete')
 
   const [items, setItems] = useState([])
   const [lookups, setLookups] = useState({})
@@ -75,8 +247,20 @@ const CommercialModule = () => {
   const [modalMode, setModalMode] = useState(null)
   const [current, setCurrent] = useState(null)
   const [formData, setFormData] = useState(config ? emptyFromConfig(config) : {})
+  const [changeLogs, setChangeLogs] = useState([])
+  const [loadingLog, setLoadingLog] = useState(false)
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
+  const listFields = useMemo(
+    () => (config ? [...config.listFields, ...auditFields.map((field) => field.name)] : []),
+    [config],
+  )
+
+  const getRecordId = (row) => {
+    const value = row?.[config.idField]
+    if (Array.isArray(value)) return value[0] ?? ''
+    return value ?? ''
+  }
 
   useEffect(() => {
     if (!config) return undefined
@@ -88,6 +272,7 @@ const CommercialModule = () => {
       setItems([])
       setTotal(0)
       setFormData(emptyFromConfig(config))
+      setChangeLogs([])
       setCurrent(null)
       setModalMode(null)
     }, 0)
@@ -121,7 +306,7 @@ const CommercialModule = () => {
   }
 
   useEffect(() => {
-    if (!config) return undefined
+    if (!config || !canRead) return undefined
     const timeoutId = window.setTimeout(() => {
       load().catch(() => {})
     }, 0)
@@ -130,7 +315,7 @@ const CommercialModule = () => {
   }, [resourceKey, page, pageSize, sortBy, sortDir])
 
   useEffect(() => {
-    if (!config) return undefined
+    if (!config || !canRead) return undefined
     const timeoutId = window.setTimeout(() => {
       loadLookups().catch(() => {})
     }, 0)
@@ -147,12 +332,14 @@ const CommercialModule = () => {
   }
 
   const openCreate = () => {
+    if (!canCreate) return
     setCurrent(null)
     setFormData(emptyFromConfig(config))
     setModalMode('form')
   }
 
   const openEdit = (row) => {
+    if (!canWrite) return
     setCurrent(row)
     const next = emptyFromConfig(config)
     for (const field of config.fields.filter((item) => !item.readOnly)) {
@@ -165,6 +352,24 @@ const CommercialModule = () => {
   const openDetail = (row) => {
     setCurrent(row)
     setModalMode('detail')
+  }
+
+  const openChangeLog = async (row) => {
+    const recordId = getRecordId(row)
+    setCurrent(row)
+    setChangeLogs([])
+    setLoadingLog(true)
+    setModalMode('changeLog')
+    try {
+      const res = await api.get(
+        `/api/commercial/logs/${config.endpoint}/${encodeURIComponent(recordId)}`,
+      )
+      setChangeLogs(res.data.items || [])
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo cargar el log de cambios')
+    } finally {
+      setLoadingLog(false)
+    }
   }
 
   const onSearch = () => {
@@ -192,20 +397,40 @@ const CommercialModule = () => {
       const value = formData[field]
       return value === undefined || value === null || value === ''
     })
-    if (!missing.length) return true
-    toast.error(
-      `Completa campos obligatorios: ${missing.map((field) => getFieldLabel(config, field)).join(', ')}`,
-    )
+
+    const invalidRutFields = config.fields
+      .filter((field) => field.type === 'chile-rut')
+      .filter(
+        (field) => getRutStatus(formData[field.name], { required: field.required }) === 'invalid',
+      )
+
+    if (!missing.length && !invalidRutFields.length) return true
+
+    if (missing.length) {
+      toast.error(
+        `Completa campos obligatorios: ${missing.map((field) => getFieldLabel(config, field)).join(', ')}`,
+      )
+    }
+
+    if (invalidRutFields.length) {
+      toast.error(
+        `Corrige RUT invalido: ${invalidRutFields.map((field) => field.label).join(', ')}`,
+      )
+    }
+
     return false
   }
 
   const submit = async () => {
+    if (current && !canWrite) return
+    if (!current && !canCreate) return
     if (!validate()) return
     setSaving(true)
     try {
-      if (current?.[config.idField]) {
+      const currentId = getRecordId(current)
+      if (currentId) {
         await api.put(
-          `/api/commercial/${config.endpoint}/${encodeURIComponent(current[config.idField])}`,
+          `/api/commercial/${config.endpoint}/${encodeURIComponent(currentId)}`,
           formData,
         )
         toast.success(`${config.singular} actualizado`)
@@ -225,18 +450,51 @@ const CommercialModule = () => {
   }
 
   const remove = async (row) => {
-    const label = row[config.displayField] || row[config.idField]
+    if (!canDelete) return
+    const recordId = getRecordId(row)
+    const label = row[config.displayField] || recordId
     if (!window.confirm(`Seguro que deseas eliminar "${label}"?`)) return
     try {
-      await api.delete(
-        `/api/commercial/${config.endpoint}/${encodeURIComponent(row[config.idField])}`,
-      )
+      await api.delete(`/api/commercial/${config.endpoint}/${encodeURIComponent(recordId)}`)
       toast.success(`${config.singular} eliminado`)
       await loadLookups()
       await load()
     } catch (error) {
       toast.error(error.response?.data?.message || 'No se pudo eliminar')
     }
+  }
+
+  const getFormSections = () => {
+    const visibleFields = config.fields.filter((field) => !field.readOnly)
+    const fieldsByName = new Map(visibleFields.map((field) => [field.name, field]))
+    const usedFields = new Set()
+
+    const configuredSections = (config.formSections || [])
+      .map((section) => {
+        const fields = section.fields
+          .map((fieldName) => fieldsByName.get(fieldName))
+          .filter(Boolean)
+          .filter((field) => {
+            usedFields.add(field.name)
+            return true
+          })
+
+        return { ...section, fields }
+      })
+      .filter((section) => section.fields.length > 0)
+
+    const remainingFields = visibleFields.filter((field) => !usedFields.has(field.name))
+    if (remainingFields.length) {
+      configuredSections.push({
+        title: 'Datos generales',
+        icon: 'settings',
+        fields: remainingFields,
+      })
+    }
+
+    return configuredSections.length
+      ? configuredSections
+      : [{ title: 'Datos generales', icon: 'settings', fields: visibleFields }]
   }
 
   const renderField = (field) => {
@@ -307,13 +565,38 @@ const CommercialModule = () => {
       )
     }
 
+    if (field.type === 'chile-rut') {
+      const rutStatus = getRutStatus(value, { required: field.required })
+
+      return (
+        <>
+          <CFormInput
+            type="text"
+            value={value ?? ''}
+            onBlur={(event) => {
+              if (getRutStatus(event.target.value, { required: field.required }) === 'valid') {
+                setField(field.name, formatRut(event.target.value))
+              }
+            }}
+            onChange={(event) => setField(field.name, event.target.value)}
+            required={field.required}
+            disabled={disabled}
+            valid={rutStatus === 'valid'}
+            invalid={rutStatus === 'invalid'}
+            placeholder="12.345.678-9"
+          />
+          {rutStatus === 'valid' && <CFormFeedback valid>RUT OK</CFormFeedback>}
+          {rutStatus === 'invalid' && <CFormFeedback invalid>RUT chileno invalido</CFormFeedback>}
+        </>
+      )
+    }
+
     if (field.type === 'boolean') {
       return (
         <CFormSwitch
           className="boolean-switch-field"
           checked={!!value}
           onChange={(event) => setField(field.name, event.target.checked)}
-          label={field.label}
         />
       )
     }
@@ -340,7 +623,17 @@ const CommercialModule = () => {
     )
   }
 
-  const detailFields = config.fields.filter((field) => !field.createOnly || current?.[field.name])
+  const detailFields = [...config.fields, ...auditFields].filter(
+    (field) => !field.createOnly || current?.[field.name],
+  )
+
+  if (!canRead) {
+    return <CAlert color="warning">No tienes permisos para leer este mantenedor.</CAlert>
+  }
+
+  const readableResourceOrder = resourceOrder.filter((key) =>
+    hasPermission(user, commercialPermissionKey(key), 'read'),
+  )
 
   return (
     <>
@@ -350,14 +643,16 @@ const CommercialModule = () => {
             <CIcon icon={cilBriefcase} className="me-2" />
             <span className="fw-semibold">{config.title}</span>
           </div>
-          <CButton color="primary" onClick={openCreate}>
-            <CIcon icon={cilPlus} className="me-1" />
-            Nuevo
-          </CButton>
+          {canCreate && (
+            <CButton color="primary" onClick={openCreate}>
+              <CIcon icon={cilPlus} className="me-1" />
+              Nuevo
+            </CButton>
+          )}
         </CCardHeader>
         <CCardBody>
           <div className="commercial-tabs mb-3">
-            {resourceOrder.map((key) => (
+            {readableResourceOrder.map((key) => (
               <Link
                 key={key}
                 className={`commercial-tab ${key === resourceKey ? 'active' : ''}`}
@@ -408,7 +703,7 @@ const CommercialModule = () => {
             <CTable hover responsive>
               <CTableHead>
                 <CTableRow>
-                  {config.listFields.map((field) => (
+                  {listFields.map((field) => (
                     <SortableTableHeader
                       key={field}
                       column={{ key: field, label: getFieldLabel(config, field) }}
@@ -427,10 +722,12 @@ const CommercialModule = () => {
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {items.map((row) => (
-                  <CTableRow key={row[config.idField]}>
-                    {config.listFields.map((field) => (
-                      <CTableDataCell key={field}>{formatValue(row[field])}</CTableDataCell>
+                {items.map((row, index) => (
+                  <CTableRow key={`${resourceKey}-${getRecordId(row) || index}`}>
+                    {listFields.map((field) => (
+                      <CTableDataCell key={field}>
+                        {formatFieldValue(field, row[field])}
+                      </CTableDataCell>
                     ))}
                     <CTableDataCell className="actions-cell">
                       <CButtonGroup size="sm">
@@ -441,12 +738,27 @@ const CommercialModule = () => {
                         >
                           <CIcon icon={cilZoom} />
                         </CButton>
-                        <CButton color="secondary" variant="outline" onClick={() => openEdit(row)}>
-                          <CIcon icon={cilPencil} />
+                        {canWrite && (
+                          <CButton
+                            color="secondary"
+                            variant="outline"
+                            onClick={() => openEdit(row)}
+                          >
+                            <CIcon icon={cilPencil} />
+                          </CButton>
+                        )}
+                        <CButton
+                          color="secondary"
+                          variant="outline"
+                          onClick={() => openChangeLog(row)}
+                        >
+                          <CIcon icon={cilHistory} />
                         </CButton>
-                        <CButton color="danger" variant="outline" onClick={() => remove(row)}>
-                          <CIcon icon={cilTrash} />
-                        </CButton>
+                        {canDelete && (
+                          <CButton color="danger" variant="outline" onClick={() => remove(row)}>
+                            <CIcon icon={cilTrash} />
+                          </CButton>
+                        )}
                       </CButtonGroup>
                     </CTableDataCell>
                   </CTableRow>
@@ -454,7 +766,7 @@ const CommercialModule = () => {
                 {items.length === 0 && (
                   <CTableRow>
                     <CTableDataCell
-                      colSpan={config.listFields.length + 1}
+                      colSpan={listFields.length + 1}
                       className="text-center text-body-secondary"
                     >
                       Sin resultados
@@ -499,21 +811,36 @@ const CommercialModule = () => {
           }}
         >
           <CModalBody>
-            <CRow className="g-3">
-              {config.fields
-                .filter((field) => !field.readOnly)
-                .map((field) => (
-                  <CCol md={field.type === 'textarea' ? 12 : 6} key={field.name}>
-                    {field.type !== 'boolean' && (
-                      <CFormLabel>
-                        {field.label}
-                        {field.required && <span className="text-danger"> *</span>}
-                      </CFormLabel>
-                    )}
-                    {renderField(field)}
-                  </CCol>
-                ))}
-            </CRow>
+            <div className="commercial-form-layout">
+              {getFormSections().map((section) => {
+                const sectionIcon = formIconMap[section.icon] || cilList
+
+                return (
+                  <section className="commercial-form-section" key={section.title}>
+                    <div className="commercial-form-section-title">
+                      <CIcon icon={sectionIcon} />
+                      <span>{section.title}</span>
+                    </div>
+                    <CRow className="g-3">
+                      {section.fields.map((field) => (
+                        <CCol md={field.type === 'textarea' ? 12 : 6} key={field.name}>
+                          <div className="commercial-form-field">
+                            <CFormLabel className="commercial-field-label">
+                              <CIcon icon={getFieldIcon(field)} />
+                              <span>
+                                {field.label}
+                                {field.required && <span className="text-danger"> *</span>}
+                              </span>
+                            </CFormLabel>
+                            {renderField(field)}
+                          </div>
+                        </CCol>
+                      ))}
+                    </CRow>
+                  </section>
+                )
+              })}
+            </div>
           </CModalBody>
           <CModalFooter>
             <CButton color="secondary" variant="outline" onClick={closeModal} disabled={saving}>
@@ -535,13 +862,14 @@ const CommercialModule = () => {
             <div className="commercial-detail-grid">
               <div>
                 <span className="text-body-secondary">ID</span>
-                <strong>{formatValue(current[config.idField])}</strong>
+                <strong>{formatValue(getRecordId(current))}</strong>
               </div>
               {detailFields.map((field) => (
                 <div key={field.name}>
                   <span className="text-body-secondary">{field.label}</span>
                   <strong>
-                    {formatValue(
+                    {formatFieldValue(
+                      field.name,
                       current[
                         field.lookup ? field.label?.toLowerCase().replaceAll(' ', '_') : field.name
                       ] ?? current[field.name],
@@ -551,6 +879,63 @@ const CommercialModule = () => {
               ))}
             </div>
           )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="outline" onClick={closeModal}>
+            Cerrar
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      <CModal alignment="center" size="xl" visible={modalMode === 'changeLog'} onClose={closeModal}>
+        <CModalHeader>
+          <CModalTitle>Log de cambios {config.singular}</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <div className="macos-grid commercial-grid">
+            <CTable hover responsive>
+              <CTableHead>
+                <CTableRow>
+                  <CTableDataCell as="th">Fecha</CTableDataCell>
+                  <CTableDataCell as="th">Accion</CTableDataCell>
+                  <CTableDataCell as="th">Campo</CTableDataCell>
+                  <CTableDataCell as="th">Valor anterior</CTableDataCell>
+                  <CTableDataCell as="th">Valor nuevo</CTableDataCell>
+                  <CTableDataCell as="th">Usuario</CTableDataCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {changeLogs.map((log) => (
+                  <CTableRow key={log.id_log}>
+                    <CTableDataCell>{formatDateTime(log.fecha_cambio)}</CTableDataCell>
+                    <CTableDataCell>{formatValue(log.accion)}</CTableDataCell>
+                    <CTableDataCell>{log.campo || 'Registro'}</CTableDataCell>
+                    <CTableDataCell className="commercial-log-value">
+                      {formatValue(log.valor_anterior)}
+                    </CTableDataCell>
+                    <CTableDataCell className="commercial-log-value">
+                      {formatValue(log.valor_nuevo)}
+                    </CTableDataCell>
+                    <CTableDataCell>{formatValue(log.usuario)}</CTableDataCell>
+                  </CTableRow>
+                ))}
+                {!loadingLog && changeLogs.length === 0 && (
+                  <CTableRow>
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary">
+                      Sin cambios registrados
+                    </CTableDataCell>
+                  </CTableRow>
+                )}
+                {loadingLog && (
+                  <CTableRow>
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary">
+                      Cargando log...
+                    </CTableDataCell>
+                  </CTableRow>
+                )}
+              </CTableBody>
+            </CTable>
+          </div>
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" variant="outline" onClick={closeModal}>

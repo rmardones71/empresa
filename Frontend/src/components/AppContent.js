@@ -20,8 +20,10 @@
 
 import React, { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { CContainer, CSpinner } from '@coreui/react'
+import { CAlert, CContainer, CSpinner } from '@coreui/react'
+import { useSelector } from 'react-redux'
 import ErrorBoundary from './ErrorBoundary'
+import { hasPermission } from 'src/utils/permissions'
 
 // routes config
 import routes from '../routes'
@@ -39,6 +41,8 @@ import routes from '../routes'
  * @returns {React.ReactElement} Content container with routed views
  */
 const AppContent = () => {
+  const user = useSelector((s) => s.auth.user)
+
   return (
     <CContainer className="px-4" lg>
       <Suspense fallback={<CSpinner color="primary" />}>
@@ -48,10 +52,14 @@ const AppContent = () => {
             if (!Element) return null
 
             // Render each route inside a boundary so we can pinpoint which route is failing.
-            const wrapped = (
+            const wrapped = hasPermission(user, route.permissionKey, 'read') ? (
               <ErrorBoundary>
                 <Element />
               </ErrorBoundary>
+            ) : (
+              <CAlert color="warning" className="mt-3">
+                No tienes permisos para acceder a este modulo.
+              </CAlert>
             )
             return (
               <Route

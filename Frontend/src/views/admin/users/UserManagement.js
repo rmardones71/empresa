@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
+  CAlert,
   CButton,
   CAvatar,
   CCard,
@@ -40,6 +41,7 @@ import GridPaginationBar from 'src/components/GridPaginationBar'
 import SortableTableHeader from 'src/components/SortableTableHeader'
 import { sortRows, toggleSort } from 'src/utils/gridSort'
 import { runOnEnter } from 'src/utils/gridKeyboard'
+import { hasPermission } from 'src/utils/permissions'
 
 const UserManagement = () => {
   const toast = useToast()
@@ -88,8 +90,12 @@ const UserManagement = () => {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const userRole = useSelector((s) => s.auth.user?.role)
+  const currentUser = useSelector((s) => s.auth.user)
   const canExport = isPrivilegedRole(userRole)
-  const canDeleteUsers = userRole === 'Super Admin'
+  const canCreateUsers = hasPermission(currentUser, 'admin.users', 'create')
+  const canReadUsers = hasPermission(currentUser, 'admin.users', 'read')
+  const canWriteUsers = hasPermission(currentUser, 'admin.users', 'write')
+  const canDeleteUsers = hasPermission(currentUser, 'admin.users', 'delete')
   const sortedItems = useMemo(
     () =>
       sortRows(items, sortBy, sortDir, {
@@ -179,13 +185,16 @@ const UserManagement = () => {
   }
 
   useEffect(() => {
+    if (!canReadUsers) return undefined
     const timeoutId = window.setTimeout(() => {
       loadRoles().catch(() => {})
     }, 0)
     return () => window.clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
+    if (!canReadUsers) return undefined
     const timeoutId = window.setTimeout(() => {
       load().catch(() => {})
     }, 0)
@@ -296,11 +305,13 @@ const UserManagement = () => {
   }
 
   const openCreate = () => {
+    if (!canCreateUsers) return
     setEditing(null)
     setModalOpen(true)
   }
 
   const openEdit = (row) => {
+    if (!canWriteUsers) return
     setEditing({
       userId: row.UserId,
       username: row.Username,
@@ -317,6 +328,8 @@ const UserManagement = () => {
   }
 
   const submitModal = async (values) => {
+    if (editing?.userId && !canWriteUsers) return
+    if (!editing?.userId && !canCreateUsers) return
     setSaving(true)
     try {
       const payload = {
@@ -353,6 +366,7 @@ const UserManagement = () => {
   }
 
   const toggle2fa = async (id) => {
+    if (!canWriteUsers) return
     try {
       await api.patch(`/api/users/${id}/toggle-2fa`)
       toast.success('2FA actualizado')
@@ -363,6 +377,7 @@ const UserManagement = () => {
   }
 
   const toggleStatus = async (id) => {
+    if (!canWriteUsers) return
     try {
       await api.patch(`/api/users/${id}/toggle-status`)
       toast.success('Estado actualizado')
@@ -373,6 +388,7 @@ const UserManagement = () => {
   }
 
   const deleteUser = async (user) => {
+    if (!canDeleteUsers) return
     const label = user.Username || user.Email || `ID ${user.UserId}`
     if (
       !window.confirm(
@@ -389,6 +405,10 @@ const UserManagement = () => {
     } catch (e) {
       toast.error(e.response?.data?.message || 'No se pudo eliminar el usuario')
     }
+  }
+
+  if (!canReadUsers) {
+    return <CAlert color="warning">No tienes permisos para leer gestion de usuarios.</CAlert>
   }
 
   return (
@@ -437,9 +457,11 @@ const UserManagement = () => {
               </CButton>
             </>
           )}
-          <CButton color="primary" onClick={openCreate}>
-            Nuevo
-          </CButton>
+          {canCreateUsers && (
+            <CButton color="primary" onClick={openCreate}>
+              Nuevo
+            </CButton>
+          )}
         </div>
       </CCardHeader>
       <CCardBody>
@@ -562,35 +584,42 @@ const UserManagement = () => {
                   )}
                   <CTableDataCell className="actions-cell">
                     <div className="d-flex gap-2 justify-content-end">
-                      <CButton
-                        size="sm"
-                        color="secondary"
-                        variant="outline"
-                        onClick={() => openEdit(u)}
-                      >
-                        <CIcon icon={cilPencil} className="me-1" /> Editar
-                      </CButton>
-                      <CButton
-                        size="sm"
-                        color={u.TwoFactorEnabled ? 'success' : 'danger'}
-                        variant="outline"
-                        onClick={() => toggle2fa(u.UserId)}
-                      >
-                        <CIcon
-                          icon={u.TwoFactorEnabled ? cilCheckCircle : cilXCircle}
-                          className="me-1"
-                        />{' '}
-                        2FA
-                      </CButton>
-                      <CButton
-                        size="sm"
-                        color={u.IsActive ? 'success' : 'danger'}
-                        variant="outline"
-                        onClick={() => toggleStatus(u.UserId)}
-                      >
-                        <CIcon icon={u.IsActive ? cilCheckCircle : cilXCircle} className="me-1" />{' '}
-                        Estado
-                      </CButton>
+                      {canWriteUsers && (
+                        <>
+                          <CButton
+                            size="sm"
+                            color="secondary"
+                            variant="outline"
+                            onClick={() => openEdit(u)}
+                          >
+                            <CIcon icon={cilPencil} className="me-1" /> Editar
+                          </CButton>
+                          <CButton
+                            size="sm"
+                            color={u.TwoFactorEnabled ? 'success' : 'danger'}
+                            variant="outline"
+                            onClick={() => toggle2fa(u.UserId)}
+                          >
+                            <CIcon
+                              icon={u.TwoFactorEnabled ? cilCheckCircle : cilXCircle}
+                              className="me-1"
+                            />{' '}
+                            2FA
+                          </CButton>
+                          <CButton
+                            size="sm"
+                            color={u.IsActive ? 'success' : 'danger'}
+                            variant="outline"
+                            onClick={() => toggleStatus(u.UserId)}
+                          >
+                            <CIcon
+                              icon={u.IsActive ? cilCheckCircle : cilXCircle}
+                              className="me-1"
+                            />{' '}
+                            Estado
+                          </CButton>
+                        </>
+                      )}
                       {canDeleteUsers && (
                         <CButton
                           size="sm"

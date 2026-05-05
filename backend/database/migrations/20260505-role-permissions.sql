@@ -1,51 +1,69 @@
-/*
-  Seeds initial roles + initial admin user (bcrypt hash must be provided by backend seed script).
-  Database: oportunidades (EXISTING)
-*/
-
 USE [oportunidades];
 GO
 
-SET NOCOUNT ON;
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
 GO
 
-MERGE dbo.Roles AS target
-USING (VALUES
-  (N'Super Admin', N'Acceso absoluto al sistema', 1),
-  (N'Admin', N'Administración operativa', 1),
-  (N'User', N'Usuario estándar', 1)
-) AS source (RoleName, [Description], IsActive)
-ON target.RoleName = source.RoleName
-WHEN MATCHED THEN
-  UPDATE SET
-    target.[Description] = source.[Description],
-    target.IsActive = source.IsActive
-WHEN NOT MATCHED THEN
-  INSERT (RoleName, [Description], IsActive)
-  VALUES (source.RoleName, source.[Description], source.IsActive);
-GO
-
-/*
-  Initial user: admin / 123456 / rmardones@ucmchile.com / Super Admin
-  PasswordHash is intentionally left as a placeholder to be set by backend seed script (bcrypt).
-*/
-
-DECLARE @SuperAdminRoleId INT = (SELECT TOP 1 RoleId FROM dbo.Roles WHERE RoleName = N'Super Admin');
-
-IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'admin')
+IF OBJECT_ID('dbo.SystemModules', 'U') IS NULL
 BEGIN
-  INSERT INTO dbo.Users (
-    Username, Email, PasswordHash, FirstName, LastName, Phone, RoleId,
-    IsActive, TwoFactorEnabled, TempPassword
-  )
-  VALUES (
-    N'admin',
-    N'rmardones@ucmchile.com',
-    N'__BCRYPT_HASH_TO_SET__',
-    NULL, NULL, NULL,
-    @SuperAdminRoleId,
-    1, 0, 1
+  CREATE TABLE dbo.SystemModules (
+    ModuleKey NVARCHAR(80) NOT NULL CONSTRAINT PK_SystemModules PRIMARY KEY,
+    ModuleName NVARCHAR(120) NOT NULL,
+    ModuleGroup NVARCHAR(80) NOT NULL,
+    MenuPath NVARCHAR(200) NULL,
+    SortOrder INT NOT NULL CONSTRAINT DF_SystemModules_SortOrder DEFAULT (0),
+    IsActive BIT NOT NULL CONSTRAINT DF_SystemModules_IsActive DEFAULT (1),
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_SystemModules_CreatedAt DEFAULT (SYSUTCDATETIME()),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_SystemModules_UpdatedAt DEFAULT (SYSUTCDATETIME())
   );
+END
+GO
+
+IF OBJECT_ID('dbo.RolePermissions', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.RolePermissions (
+    RoleId INT NOT NULL,
+    ModuleKey NVARCHAR(80) NOT NULL,
+    CanCreate BIT NOT NULL CONSTRAINT DF_RolePermissions_CanCreate DEFAULT (0),
+    CanRead BIT NOT NULL CONSTRAINT DF_RolePermissions_CanRead DEFAULT (0),
+    CanWrite BIT NOT NULL CONSTRAINT DF_RolePermissions_CanWrite DEFAULT (0),
+    CanDelete BIT NOT NULL CONSTRAINT DF_RolePermissions_CanDelete DEFAULT (0),
+    UpdatedBy INT NULL,
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_RolePermissions_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT PK_RolePermissions PRIMARY KEY (RoleId, ModuleKey),
+    CONSTRAINT FK_RolePermissions_Roles FOREIGN KEY (RoleId) REFERENCES dbo.Roles(RoleId),
+    CONSTRAINT FK_RolePermissions_SystemModules FOREIGN KEY (ModuleKey) REFERENCES dbo.SystemModules(ModuleKey),
+    CONSTRAINT FK_RolePermissions_UpdatedBy FOREIGN KEY (UpdatedBy) REFERENCES dbo.Users(UserId) ON DELETE SET NULL
+  );
+END
+GO
+
+IF EXISTS (
+  SELECT 1
+  FROM sys.foreign_keys
+  WHERE name = 'FK_RolePermissions_UpdatedBy'
+    AND parent_object_id = OBJECT_ID('dbo.RolePermissions')
+    AND delete_referential_action_desc <> 'SET_NULL'
+)
+BEGIN
+  ALTER TABLE dbo.RolePermissions DROP CONSTRAINT FK_RolePermissions_UpdatedBy;
+  ALTER TABLE dbo.RolePermissions
+    ADD CONSTRAINT FK_RolePermissions_UpdatedBy
+    FOREIGN KEY (UpdatedBy) REFERENCES dbo.Users(UserId) ON DELETE SET NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SystemModules_Group' AND object_id = OBJECT_ID('dbo.SystemModules'))
+BEGIN
+  CREATE INDEX IX_SystemModules_Group ON dbo.SystemModules(ModuleGroup, SortOrder);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_RolePermissions_ModuleKey' AND object_id = OBJECT_ID('dbo.RolePermissions'))
+BEGIN
+  CREATE INDEX IX_RolePermissions_ModuleKey ON dbo.RolePermissions(ModuleKey);
 END
 GO
 

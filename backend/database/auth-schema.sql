@@ -13,6 +13,8 @@ GO
 
 IF OBJECT_ID('dbo.RefreshTokens', 'U') IS NOT NULL DROP TABLE dbo.RefreshTokens;
 IF OBJECT_ID('dbo.AuditLogs', 'U') IS NOT NULL DROP TABLE dbo.AuditLogs;
+IF OBJECT_ID('dbo.RolePermissions', 'U') IS NOT NULL DROP TABLE dbo.RolePermissions;
+IF OBJECT_ID('dbo.SystemModules', 'U') IS NOT NULL DROP TABLE dbo.SystemModules;
 IF OBJECT_ID('dbo.Users', 'U') IS NOT NULL DROP TABLE dbo.Users;
 IF OBJECT_ID('dbo.Roles', 'U') IS NOT NULL DROP TABLE dbo.Roles;
 GO
@@ -53,6 +55,34 @@ CREATE TABLE dbo.Users (
 );
 GO
 
+CREATE TABLE dbo.SystemModules (
+  ModuleKey NVARCHAR(80) NOT NULL CONSTRAINT PK_SystemModules PRIMARY KEY,
+  ModuleName NVARCHAR(120) NOT NULL,
+  ModuleGroup NVARCHAR(80) NOT NULL,
+  MenuPath NVARCHAR(200) NULL,
+  SortOrder INT NOT NULL CONSTRAINT DF_SystemModules_SortOrder DEFAULT (0),
+  IsActive BIT NOT NULL CONSTRAINT DF_SystemModules_IsActive DEFAULT (1),
+  CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_SystemModules_CreatedAt DEFAULT (SYSUTCDATETIME()),
+  UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_SystemModules_UpdatedAt DEFAULT (SYSUTCDATETIME())
+);
+GO
+
+CREATE TABLE dbo.RolePermissions (
+  RoleId INT NOT NULL,
+  ModuleKey NVARCHAR(80) NOT NULL,
+  CanCreate BIT NOT NULL CONSTRAINT DF_RolePermissions_CanCreate DEFAULT (0),
+  CanRead BIT NOT NULL CONSTRAINT DF_RolePermissions_CanRead DEFAULT (0),
+  CanWrite BIT NOT NULL CONSTRAINT DF_RolePermissions_CanWrite DEFAULT (0),
+  CanDelete BIT NOT NULL CONSTRAINT DF_RolePermissions_CanDelete DEFAULT (0),
+  UpdatedBy INT NULL,
+  UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_RolePermissions_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+  CONSTRAINT PK_RolePermissions PRIMARY KEY (RoleId, ModuleKey),
+  CONSTRAINT FK_RolePermissions_Roles FOREIGN KEY (RoleId) REFERENCES dbo.Roles(RoleId),
+  CONSTRAINT FK_RolePermissions_SystemModules FOREIGN KEY (ModuleKey) REFERENCES dbo.SystemModules(ModuleKey),
+  CONSTRAINT FK_RolePermissions_UpdatedBy FOREIGN KEY (UpdatedBy) REFERENCES dbo.Users(UserId) ON DELETE SET NULL
+);
+GO
+
 CREATE TABLE dbo.AuditLogs (
   AuditId BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AuditLogs PRIMARY KEY,
   UserId INT NULL,
@@ -77,6 +107,8 @@ GO
 
 CREATE INDEX IX_Users_RoleId ON dbo.Users(RoleId);
 CREATE INDEX IX_Users_IsActive ON dbo.Users(IsActive);
+CREATE INDEX IX_SystemModules_Group ON dbo.SystemModules(ModuleGroup, SortOrder);
+CREATE INDEX IX_RolePermissions_ModuleKey ON dbo.RolePermissions(ModuleKey);
 CREATE INDEX IX_AuditLogs_UserId ON dbo.AuditLogs(UserId);
 CREATE INDEX IX_AuditLogs_ActionType ON dbo.AuditLogs(ActionType);
 CREATE INDEX IX_RefreshTokens_UserId ON dbo.RefreshTokens(UserId);
