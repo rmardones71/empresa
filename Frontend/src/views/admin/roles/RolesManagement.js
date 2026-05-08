@@ -19,7 +19,15 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCloudDownload, cilPencil, cilPlus, cilShieldAlt } from '@coreui/icons'
+import {
+  cilCheckCircle,
+  cilCloudDownload,
+  cilPencil,
+  cilPlus,
+  cilShieldAlt,
+  cilTrash,
+  cilXCircle,
+} from '@coreui/icons'
 import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
 import GridColumnPicker from 'src/components/GridColumnPicker'
@@ -170,6 +178,40 @@ const RolesManagement = () => {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const toggleRoleStatus = async (row) => {
+    if (!canManageRoles) return
+    try {
+      await api.put(`/api/roles/${row.RoleId}`, {
+        roleName: row.RoleName,
+        isActive: !row.IsActive,
+      })
+      toast.success('Estado del rol actualizado')
+      await load()
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'No se pudo actualizar estado del rol')
+    }
+  }
+
+  const deleteRole = async (row) => {
+    if (!canManageRoles) return
+    const label = row.RoleName || `ID ${row.RoleId}`
+    if (
+      !window.confirm(
+        `Â¿Seguro que deseas eliminar el rol "${label}"? Esta acciÃ³n no se puede deshacer.`,
+      )
+    ) {
+      return
+    }
+
+    try {
+      await api.delete(`/api/roles/${row.RoleId}`)
+      toast.success('Rol eliminado')
+      await load()
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'No se pudo eliminar el rol')
     }
   }
 
@@ -381,7 +423,13 @@ const RolesManagement = () => {
                   {visibleColumns.roleId && <CTableDataCell>{r.RoleId}</CTableDataCell>}
                   {visibleColumns.roleName && <CTableDataCell>{r.RoleName}</CTableDataCell>}
                   {visibleColumns.isActive && (
-                    <CTableDataCell>{r.IsActive ? 'Sí' : 'No'}</CTableDataCell>
+                    <CTableDataCell>
+                      <span
+                        className={`grid-status-pill ${r.IsActive ? 'is-active' : 'is-inactive'}`}
+                      >
+                        {r.IsActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </CTableDataCell>
                   )}
                   {visibleColumns.createdAt && (
                     <CTableDataCell>
@@ -401,14 +449,37 @@ const RolesManagement = () => {
                         </CButton>
                       )}
                       {canManageRoles && (
-                        <CButton
-                          size="sm"
-                          color="secondary"
-                          variant="outline"
-                          onClick={() => openEdit(r)}
-                        >
-                          <CIcon icon={cilPencil} className="me-1" /> Editar
-                        </CButton>
+                        <>
+                          <CButton
+                            size="sm"
+                            color="secondary"
+                            variant="outline"
+                            onClick={() => openEdit(r)}
+                          >
+                            <CIcon icon={cilPencil} className="me-1" /> Editar
+                          </CButton>
+                          <CButton
+                            className="grid-action-status"
+                            size="sm"
+                            color={r.IsActive ? 'success' : 'danger'}
+                            variant="outline"
+                            onClick={() => toggleRoleStatus(r)}
+                          >
+                            <CIcon
+                              icon={r.IsActive ? cilCheckCircle : cilXCircle}
+                              className="me-1"
+                            />{' '}
+                            {r.IsActive ? 'Activo' : 'Inactivo'}
+                          </CButton>
+                          <CButton
+                            size="sm"
+                            color="danger"
+                            variant="outline"
+                            onClick={() => deleteRole(r)}
+                          >
+                            <CIcon icon={cilTrash} className="me-1" /> Eliminar
+                          </CButton>
+                        </>
                       )}
                     </CTableDataCell>
                   )}

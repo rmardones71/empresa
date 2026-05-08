@@ -595,6 +595,7 @@ const UserManagement = () => {
                             <CIcon icon={cilPencil} className="me-1" /> Editar
                           </CButton>
                           <CButton
+                            className="grid-action-2fa"
                             size="sm"
                             color={u.TwoFactorEnabled ? 'success' : 'danger'}
                             variant="outline"
@@ -607,6 +608,7 @@ const UserManagement = () => {
                             2FA
                           </CButton>
                           <CButton
+                            className="grid-action-status"
                             size="sm"
                             color={u.IsActive ? 'success' : 'danger'}
                             variant="outline"
@@ -616,7 +618,7 @@ const UserManagement = () => {
                               icon={u.IsActive ? cilCheckCircle : cilXCircle}
                               className="me-1"
                             />{' '}
-                            Estado
+                            {u.IsActive ? 'Activo' : 'Inactivo'}
                           </CButton>
                         </>
                       )}

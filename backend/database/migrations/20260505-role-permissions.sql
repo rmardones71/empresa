@@ -73,6 +73,7 @@ USING (VALUES
   (N'commercial.empresas', N'Empresas', N'Gestion comercial', N'/commercial/empresas', 100),
   (N'commercial.contactos', N'Contactos', N'Gestion comercial', N'/commercial/contactos', 110),
   (N'commercial.contratos', N'Contratos', N'Gestion comercial', N'/commercial/contratos', 120),
+  (N'commercial.contratos_empresa', N'Contrato Empresa', N'Gestion comercial', N'/commercial/contratos-empresa', 125),
   (N'commercial.lineas', N'Lineas de contrato', N'Gestion comercial', N'/commercial/lineas', 130),
   (N'commercial.casos', N'Casos', N'Gestion comercial', N'/commercial/casos', 140),
   (N'commercial.documentos', N'Documentos', N'Gestion comercial', N'/commercial/documentos', 150),

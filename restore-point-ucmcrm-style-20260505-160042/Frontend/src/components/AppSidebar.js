@@ -58,7 +58,8 @@ const AppSidebar = () => {
 
   return (
     <CSidebar
-      className="border-end ucmcrm-sidebar"
+      className="border-end"
+      colorScheme="dark"
       position="fixed"
       unfoldable={unfoldable}
       visible={sidebarShow}

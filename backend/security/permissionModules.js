@@ -28,6 +28,13 @@ const permissionModules = [
     sortOrder: 120,
   },
   {
+    moduleKey: 'commercial.contratos_empresa',
+    moduleName: 'Contrato Empresa',
+    moduleGroup: 'Gestion comercial',
+    menuPath: '/commercial/contratos-empresa',
+    sortOrder: 125,
+  },
+  {
     moduleKey: 'commercial.lineas',
     moduleName: 'Lineas de contrato',
     moduleGroup: 'Gestion comercial',

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, Navigate } from 'react-router-dom'
+import { Link, useLocation, Navigate, useSearchParams } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -224,6 +224,7 @@ const formatFieldValue = (fieldName, value) => {
 
 const CommercialModule = () => {
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
   const resourceKey = location.pathname.split('/').filter(Boolean).pop()
   const config = resources[resourceKey]
@@ -322,6 +323,42 @@ const CommercialModule = () => {
     return () => window.clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceKey])
+
+  useEffect(() => {
+    if (!config || !canRead) return undefined
+    const recordId = searchParams.get('open')
+    if (!recordId) return undefined
+    const mode = searchParams.get('mode') || 'edit'
+    let cancelled = false
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const res = await api.get(
+          `/api/commercial/${config.endpoint}/${encodeURIComponent(recordId)}`,
+        )
+        if (cancelled) return
+        const row = res.data
+        setCurrent(row)
+        if (mode === 'detail' || !canWrite) {
+          setModalMode('detail')
+        } else {
+          const next = emptyFromConfig(config)
+          for (const field of config.fields.filter((item) => !item.readOnly)) {
+            next[field.name] = normalizeDateValue(row[field.name], field.type)
+          }
+          setFormData(next)
+          setModalMode('form')
+        }
+        setSearchParams({}, { replace: true })
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'No se pudo abrir el mantenedor')
+      }
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resourceKey, searchParams])
 
   if (!config) return <Navigate to="/commercial/empresas" replace />
 
@@ -732,6 +769,7 @@ const CommercialModule = () => {
                     <CTableDataCell className="actions-cell">
                       <CButtonGroup size="sm">
                         <CButton
+                          className="grid-action-view"
                           color="secondary"
                           variant="outline"
                           onClick={() => openDetail(row)}
@@ -740,6 +778,7 @@ const CommercialModule = () => {
                         </CButton>
                         {canWrite && (
                           <CButton
+                            className="grid-action-edit"
                             color="secondary"
                             variant="outline"
                             onClick={() => openEdit(row)}
@@ -748,6 +787,7 @@ const CommercialModule = () => {
                           </CButton>
                         )}
                         <CButton
+                          className="grid-action-history"
                           color="secondary"
                           variant="outline"
                           onClick={() => openChangeLog(row)}

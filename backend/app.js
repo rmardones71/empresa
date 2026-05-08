@@ -9,6 +9,7 @@ const { usersRoutes } = require('./routes/usersRoutes')
 const { rolesRoutes } = require('./routes/rolesRoutes')
 const { auditRoutes } = require('./routes/auditRoutes')
 const { commercialRoutes } = require('./routes/commercialRoutes')
+const { contratosEmpresaRoutes } = require('./routes/contratosEmpresaRoutes')
 const { parseSqlServerError } = require('./utils/sqlErrors')
 
 const app = express()
@@ -47,6 +48,7 @@ app.use('/api/users', usersRoutes)
 app.use('/api/roles', rolesRoutes)
 app.use('/api/audit', auditRoutes)
 app.use('/api/commercial', commercialRoutes)
+app.use('/api/contratos-empresa', contratosEmpresaRoutes)
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

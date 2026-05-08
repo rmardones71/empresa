@@ -14,16 +14,16 @@ const GridPaginationBar = ({
   disabled = false,
 }) => {
   return (
-    <div className="grid-pagination-bar">
-      <div className="grid-pagination-summary">
+    <div className="d-flex justify-content-between align-items-center mt-3">
+      <div className="text-body-secondary">
         Total: {total} · Página {page} / {totalPages}
       </div>
-      <div className="grid-pagination-actions">
+      <div className="d-flex gap-2 align-items-center">
         <CFormSelect
           size="sm"
-          className="grid-page-size"
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          style={{ width: 110 }}
           disabled={disabled}
         >
           {pageSizes.map((n) => (

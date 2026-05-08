@@ -16,10 +16,10 @@ const GridColumnPicker = ({ storageKey, columns, value, onChange, title = 'Filtr
 
   return (
     <CDropdown placement="bottom-end">
-      <CDropdownToggle color="secondary" variant="outline" className="grid-column-picker-toggle">
+      <CDropdownToggle color="secondary" variant="outline">
         {title}
       </CDropdownToggle>
-      <CDropdownMenu className="grid-column-picker-menu">
+      <CDropdownMenu style={{ minWidth: 280, zIndex: 2000, maxHeight: 360, overflowY: 'auto' }}>
         {filteredColumns.map((c) => (
           <CDropdownItem as="div" key={c.key} className="py-2">
             <CFormCheck

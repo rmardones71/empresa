@@ -1,0 +1,3 @@
+Restore with: Copy-Item -LiteralPath 'restore-point-ucmcrm-style-20260505-160042\Frontend\src\scss\style.scss' -Destination 'Frontend\src\scss\style.scss'; Copy-Item -LiteralPath 'restore-point-ucmcrm-style-20260505-160042\Frontend\src\components\AppSidebar.js' -Destination 'Frontend\src\components\AppSidebar.js'
+
+Grid backup files were also saved before grid styling.

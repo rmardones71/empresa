@@ -57,6 +57,13 @@ const _nav = [
       },
       {
         component: CNavItem,
+        name: 'Contrato Empresa',
+        to: '/commercial/contratos-empresa',
+        icon: <CIcon icon={cilBriefcase} customClassName="nav-icon" />,
+        permissionKey: 'commercial.contratos_empresa',
+      },
+      {
+        component: CNavItem,
         name: 'Lineas',
         to: '/commercial/lineas',
         icon: <CIcon icon={cilList} customClassName="nav-icon" />,

@@ -72,6 +72,7 @@ const UserManagement = React.lazy(() => import('./views/admin/users/UserManageme
 const RolesManagement = React.lazy(() => import('./views/admin/roles/RolesManagement'))
 const AuditLogsManagement = React.lazy(() => import('./views/admin/audit/AuditLogsManagement'))
 const CommercialModule = React.lazy(() => import('./views/commercial/CommercialModule'))
+const ContratoEmpresa = React.lazy(() => import('./views/contract-company/ContratoEmpresa'))
 
 // Profile
 const MyProfile = React.lazy(() => import('./views/profile/MyProfile'))
@@ -170,6 +171,12 @@ const routes = [
     name: 'Contratos',
     element: CommercialModule,
     permissionKey: 'commercial.contratos',
+  },
+  {
+    path: '/commercial/contratos-empresa',
+    name: 'Contrato Empresa',
+    element: ContratoEmpresa,
+    permissionKey: 'commercial.contratos_empresa',
   },
   {
     path: '/commercial/lineas',
