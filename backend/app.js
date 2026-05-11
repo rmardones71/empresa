@@ -1,4 +1,5 @@
 const express = require('express')
+const path = require('path')
 const helmet = require('helmet')
 const cors = require('cors')
 const rateLimit = require('express-rate-limit')
@@ -28,8 +29,9 @@ app.use(
     credentials: true,
   }),
 )
-app.use(express.json({ limit: '1mb' }))
+app.use(express.json({ limit: '12mb' }))
 app.use(cookieParser())
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use(
   rateLimit({

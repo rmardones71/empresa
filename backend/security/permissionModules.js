@@ -21,17 +21,10 @@ const permissionModules = [
     sortOrder: 110,
   },
   {
-    moduleKey: 'commercial.contratos',
-    moduleName: 'Contratos',
-    moduleGroup: 'Gestion comercial',
-    menuPath: '/commercial/contratos',
-    sortOrder: 120,
-  },
-  {
     moduleKey: 'commercial.contratos_empresa',
-    moduleName: 'Contrato Empresa',
-    moduleGroup: 'Gestion comercial',
-    menuPath: '/commercial/contratos-empresa',
+    moduleName: 'Contratos Empresa',
+    moduleGroup: 'Contratos',
+    menuPath: '/contratos-empresa',
     sortOrder: 125,
   },
   {

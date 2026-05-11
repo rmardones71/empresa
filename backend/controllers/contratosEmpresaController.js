@@ -30,7 +30,7 @@ async function get(req, res) {
 
 async function create(req, res) {
   try {
-    const result = await service.create(req.body, { userId: req.user.sub })
+    const result = await service.create(req.body, { userId: req.user.sub, ipAddress: req.ip })
     await auditLog({
       userId: req.user.sub,
       actionType: 'CONTRATO_EMPRESA_CREATE',
@@ -43,9 +43,27 @@ async function create(req, res) {
   }
 }
 
+async function reserveCode(req, res) {
+  try {
+    const result = await service.reserveCode({ userId: req.user.sub })
+    return res.status(201).json(result)
+  } catch (error) {
+    return sendError(res, error)
+  }
+}
+
+async function releaseCode(req, res) {
+  try {
+    const result = await service.releaseCode(req.body, { userId: req.user.sub })
+    return res.json(result)
+  } catch (error) {
+    return sendError(res, error)
+  }
+}
+
 async function update(req, res) {
   try {
-    const result = await service.update(req.params.id, req.body, { userId: req.user.sub })
+    const result = await service.update(req.params.id, req.body, { userId: req.user.sub, ipAddress: req.ip })
     await auditLog({
       userId: req.user.sub,
       actionType: 'CONTRATO_EMPRESA_UPDATE',
@@ -60,11 +78,11 @@ async function update(req, res) {
 
 async function remove(req, res) {
   try {
-    const result = await service.remove(req.params.id, { userId: req.user.sub })
+    const result = await service.remove(req.params.id, { userId: req.user.sub, ipAddress: req.ip })
     await auditLog({
       userId: req.user.sub,
       actionType: 'CONTRATO_EMPRESA_DELETE',
-      description: `Disabled contratoEmpresaId=${req.params.id}`,
+      description: `Deleted contratoEmpresaId=${req.params.id}`,
       ipAddress: req.ip,
     })
     return res.json(result)
@@ -84,7 +102,10 @@ async function lookups(req, res) {
 
 async function addRelated(req, res) {
   try {
-    const result = await service.addAssociation(req.params.id, req.params.type, req.body?.id)
+    const result = await service.addAssociation(req.params.id, req.params.type, req.body?.id, {
+      userId: req.user.sub,
+      ipAddress: req.ip,
+    })
     return res.json(result)
   } catch (error) {
     return sendError(res, error)
@@ -93,11 +114,25 @@ async function addRelated(req, res) {
 
 async function removeRelated(req, res) {
   try {
-    const result = await service.removeAssociation(req.params.id, req.params.type, req.params.relatedId)
+    const result = await service.removeAssociation(req.params.id, req.params.type, req.params.relatedId, {
+      userId: req.user.sub,
+      ipAddress: req.ip,
+    })
     return res.json(result)
   } catch (error) {
     return sendError(res, error)
   }
 }
 
-module.exports = { addRelated, create, get, list, lookups, remove, removeRelated, update }
+module.exports = {
+  addRelated,
+  create,
+  get,
+  list,
+  lookups,
+  releaseCode,
+  remove,
+  removeRelated,
+  reserveCode,
+  update,
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CAlert,
   CButton,
@@ -12,6 +12,7 @@ import {
   CFormLabel,
   CFormSelect,
   CFormSwitch,
+  CFormTextarea,
   CModal,
   CModalBody,
   CModalFooter,
@@ -27,37 +28,49 @@ import {
 import CIcon from '@coreui/icons-react'
 import {
   cilAddressBook,
+  cilBadge,
   cilBriefcase,
   cilBuilding,
   cilCalendar,
   cilCheckCircle,
+  cilCloudDownload,
+  cilContact,
   cilDescription,
+  cilEnvelopeClosed,
   cilFile,
   cilList,
   cilMoney,
   cilNotes,
   cilPencil,
+  cilPhone,
   cilPlus,
   cilSave,
   cilSearch,
   cilTrash,
   cilX,
 } from '@coreui/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
+import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
 import SortableTableHeader from 'src/components/SortableTableHeader'
+import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } from 'src/utils/export'
 import { runOnEnter } from 'src/utils/gridKeyboard'
-import { hasPermission } from 'src/utils/permissions'
+import { hasPermission, isSecurityAdmin } from 'src/utils/permissions'
 import logoUcm from 'src/assets/images/brand/logo-ucm.png'
 import { formatRut, getRutStatus } from 'src/views/commercial/rutChile'
-import { chileRegions, getComunasByRegion } from 'src/views/commercial/chileLocations'
+import {
+  chileRegions,
+  getCiudadesByRegion,
+  getComunasByCity,
+} from 'src/views/commercial/chileLocations'
 
 const moduleKey = 'commercial.contratos_empresa'
 
 const emptyForm = {
+  codigo_contrato_empresa: '',
   rut_empresa: '',
   id_categoria: '',
   id_tipo_servicio: '',
@@ -87,25 +100,59 @@ const emptyEmpresaForm = {
   rubro: '',
   id_categoria: '',
   direccion: '',
+  ciudad: '',
   region: '',
   comuna: '',
   sitio_web: '',
 }
 
+const emptyContactoForm = {
+  id_tipo_contacto: '',
+  id_estado_contacto: '',
+  rut: '',
+  nombre: '',
+  cargo: '',
+  email: '',
+  telefono: '',
+  canal_preferido: '',
+  autoriza_comunicaciones: false,
+}
+
 const emptyLineaForm = {
-  id_contrato: '',
+  contrato_empresa_id: '',
   titulo: '',
   id_tipo_servicio: '',
   id_tipo_tarifa: '',
   id_frecuencia: '',
   fecha_inicio: '',
   fecha_inicio_ciclo_facturacion: '',
+  divisa: 'Peso',
   tarifa_fija: '',
   moneda_fijo: '',
   tarifa_variable: '',
   moneda_variable: '',
   unidad_variable: '',
   iva: true,
+}
+
+const emptyCasoForm = {
+  id_contacto: '',
+  contrato_empresa_id: '',
+  titulo: '',
+  texto: '',
+  relato: '',
+  adjuntos: '',
+}
+
+const emptyDocumentoForm = {
+  contrato_empresa_id: '',
+  tipo_documento: '',
+  nombre: '',
+  descripcion: '',
+  version: '',
+  responsable: '',
+  archivo: '',
+  estado: '',
 }
 
 const requiredFields = [
@@ -122,6 +169,58 @@ const requiredFields = [
   'id_estado_contacto',
 ]
 
+const contractFieldLayoutStorageKey = 'contract-company-field-layout'
+
+const defaultContractFieldLayout = {
+  company: ['empresa', 'categoria'],
+  contract: [
+    'titulo',
+    'tipo_servicio',
+    'estado_vital',
+    'fecha_firma',
+    'fecha_inicio',
+    'fecha_termino',
+    'fecha_facturacion',
+    'medio_pago',
+    'multa',
+    'frecuencia',
+    'tipo_tarifa',
+    'reajustable',
+    'requiere_orden_compra',
+  ],
+  contact: ['contacto', 'telefono_contacto', 'email_contacto'],
+}
+
+function normalizeFieldLayout(layout = {}) {
+  return Object.entries(defaultContractFieldLayout).reduce((acc, [section, defaults]) => {
+    const saved = Array.isArray(layout[section]) ? layout[section] : []
+    const validSaved = saved.filter((field) => defaults.includes(field))
+    const missing = defaults.filter((field) => !validSaved.includes(field))
+    acc[section] = [...validSaved, ...missing]
+    return acc
+  }, {})
+}
+
+function readStoredFieldLayout() {
+  try {
+    return normalizeFieldLayout(JSON.parse(window.localStorage.getItem(contractFieldLayoutStorageKey) || '{}'))
+  } catch (error) {
+    return defaultContractFieldLayout
+  }
+}
+
+function moveFieldInSection(layout, section, fromField, toField) {
+  if (!section || !fromField || !toField || fromField === toField) return layout
+  const current = layout[section] || []
+  const fromIndex = current.indexOf(fromField)
+  const toIndex = current.indexOf(toField)
+  if (fromIndex < 0 || toIndex < 0) return layout
+  const next = [...current]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+  return { ...layout, [section]: next }
+}
+
 const relatedConfig = {
   lineas: {
     title: 'Linea de Contrato',
@@ -137,7 +236,9 @@ const relatedConfig = {
       ['tipo_servicio', 'Servicio'],
       ['tipo_tarifa', 'Tarifa'],
       ['frecuencia', 'Frecuencia'],
+      ['divisa', 'Divisa'],
       ['tarifa_fija', 'Fija'],
+      ['tarifa_variable', 'Variable'],
     ],
   },
   casos: {
@@ -153,6 +254,7 @@ const relatedConfig = {
       ['contacto', 'Contacto'],
       ['contrato', 'Contrato'],
       ['texto', 'Texto'],
+      ['adjuntos', 'Archivo'],
     ],
   },
   documentos: {
@@ -197,11 +299,137 @@ function formatValue(value) {
   return String(value)
 }
 
+const contractExportColumns = [
+  ['codigo_contrato_empresa', 'Codigo contrato'],
+  ['titulo', 'Titulo'],
+  ['rut_empresa', 'RUT empresa'],
+  ['empresa', 'Empresa'],
+  ['contacto', 'Contacto'],
+  ['estado_ctr', 'Estado contrato'],
+  ['estado_vital', 'Estado vital'],
+  ['tipo_servicio', 'Tipo servicio'],
+  ['tipo_tarifa', 'Tipo tarifa'],
+  ['frecuencia', 'Frecuencia'],
+  ['fecha_inicio', 'Fecha inicio'],
+  ['fecha_termino', 'Fecha termino'],
+  ['medio_pago', 'Medio pago'],
+  ['updated_at', 'Fecha actualizacion'],
+]
+
+function getLookupLabel(options = [], value) {
+  const option = options.find((item) => String(item.id) === String(value))
+  return option?.label || '-'
+}
+
+function normalizeSearchQuery(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120)
+}
+
+function getAttachmentUrl(value) {
+  if (value === null || value === undefined) return ''
+  const raw = String(value).trim()
+  if (!raw || raw === '-' || raw.toLowerCase() === 'null') return ''
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === 'string') return parsed.trim()
+    if (parsed?.url) return String(parsed.url).trim()
+  } catch (error) {
+    // El campo normalmente guarda una URL simple; JSON queda soportado por compatibilidad.
+  }
+  return raw
+}
+
+function normalizeAmountInput(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  return raw.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').replace(/\s/g, '')
+}
+
+function formatCurrencyAmount(value, divisa = 'Peso') {
+  if (value === null || value === undefined || value === '') return '-'
+  const number = Number(normalizeAmountInput(value))
+  if (!Number.isFinite(number)) return String(value)
+  if (divisa === 'UF') {
+    return number.toLocaleString('es-CL', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    })
+  }
+  return `$${Math.round(number).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`
+}
+
+function formatAmountForInput(value, divisa = 'Peso') {
+  if (value === null || value === undefined || value === '') return ''
+  const number = Number(normalizeAmountInput(value))
+  if (!Number.isFinite(number)) return String(value)
+  if (divisa === 'UF') {
+    return number.toLocaleString('es-CL', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    })
+  }
+  return `$${Math.round(number).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`
+}
+
+function normalizeAmountForSave(value, divisa = 'Peso') {
+  const number = Number(normalizeAmountInput(value))
+  if (!Number.isFinite(number)) return null
+  return divisa === 'UF' ? Number(number.toFixed(4)) : Math.round(number)
+}
+
+const acceptedDocumentTypes =
+  '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/png,image/jpeg,text/plain'
+
+const uploadDocumentFile = (file) =>
+  new Promise((resolve, reject) => {
+    if (!file) return resolve(null)
+    const maxBytes = 8 * 1024 * 1024
+    if (file.size > maxBytes) {
+      reject(new Error('El archivo no puede superar 8 MB'))
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const res = await api.post('/api/commercial/uploads', {
+          fileName: file.name,
+          mimeType: file.type,
+          dataUrl: reader.result,
+        })
+        resolve(res.data)
+      } catch (error) {
+        reject(new Error(error.response?.data?.message || 'No se pudo subir el archivo'))
+      }
+    }
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    reader.readAsDataURL(file)
+  })
+
 function normalizeLookupText(value) {
   return String(value || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+}
+
+function getDefaultEstadoContrato(lookups = {}) {
+  const borrador = (lookups.estados_ctr || []).find(
+    (item) => normalizeLookupText(item.label) === 'borrador',
+  )
+  return borrador?.id ? String(borrador.id) : ''
+}
+
+function getDisplayUser(user = {}) {
+  return (
+    user.name ||
+    user.fullName ||
+    [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+    user.username ||
+    user.Username ||
+    user.email ||
+    user.Email ||
+    'Usuario sistema'
+  )
 }
 
 const LookupField = ({ label, icon, value, options, onChange, required, disabled }) => {
@@ -259,9 +487,14 @@ const SearchableLookupField = ({
   placeholder = 'Buscar o seleccionar...',
   footerActionLabel,
   onFooterAction,
+  selectedActionLabel,
+  onSelectedAction,
+  hideLabel = false,
 }) => {
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const inputRef = useRef(null)
+  const skipNextFocusRef = useRef(false)
 
   const selectedOption = useMemo(
     () => options.find((item) => String(item.id) === String(value)) || null,
@@ -283,32 +516,51 @@ const SearchableLookupField = ({
     setQuery(selectedOption?.label || '')
   }
 
+  const openMenu = () => {
+    if (skipNextFocusRef.current) {
+      skipNextFocusRef.current = false
+      setIsOpen(false)
+      setQuery(selectedOption?.label || '')
+      return
+    }
+    setQuery('')
+    setIsOpen(true)
+  }
+
   const selectOption = (item) => {
     onChange(String(item.id))
     setQuery(item.label || '')
     setIsOpen(false)
   }
 
+  useEffect(() => {
+    if (!isOpen) setQuery(selectedOption?.label || '')
+  }, [isOpen, selectedOption])
+
+  useEffect(() => {
+    if (!value) return
+    setIsOpen(false)
+    setQuery(selectedOption?.label || '')
+    inputRef.current?.blur()
+  }, [value, selectedOption?.label])
+
   return (
     <div className="contract-field contract-searchable-field">
-      <CFormLabel>
-        <CIcon icon={icon} />
-        <span>
-          {label}
-          {required && <span className="text-danger"> *</span>}
-        </span>
-      </CFormLabel>
+      {!hideLabel && (
+        <CFormLabel>
+          <CIcon icon={icon} />
+          <span>
+            {label}
+            {required && <span className="text-danger"> *</span>}
+          </span>
+        </CFormLabel>
+      )}
       <div className="contract-lookup">
         <CFormInput
+          ref={inputRef}
           value={isOpen ? query : selectedOption?.label || query}
-          onFocus={() => {
-            setQuery('')
-            setIsOpen(true)
-          }}
-          onClick={() => {
-            setQuery('')
-            setIsOpen(true)
-          }}
+          onFocus={openMenu}
+          onClick={openMenu}
           onChange={(event) => {
             const nextValue = event.target.value
             setQuery(nextValue)
@@ -330,6 +582,24 @@ const SearchableLookupField = ({
           placeholder={placeholder}
           disabled={disabled}
         />
+        {onSelectedAction && (
+          <CButton
+            type="button"
+            color="light"
+            className="contract-lookup-action"
+            title={selectedActionLabel}
+            disabled={disabled || !value}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              skipNextFocusRef.current = true
+              closeMenu()
+              inputRef.current?.blur()
+              onSelectedAction(value)
+            }}
+          >
+            <CIcon icon={cilSearch} />
+          </CButton>
+        )}
         {isOpen && !disabled && (
           <div className="contract-lookup-menu">
             <div className="contract-lookup-options">
@@ -385,13 +655,23 @@ const ContractSection = ({ title, icon, children, className = '' }) => (
 const ContratoEmpresa = () => {
   const toast = useToast()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const user = useSelector((state) => state.auth.user)
   const canCreate = hasPermission(user, moduleKey, 'create')
   const canRead = hasPermission(user, moduleKey, 'read')
   const canWrite = hasPermission(user, moduleKey, 'write')
   const canDelete = hasPermission(user, moduleKey, 'delete')
+  const canHardDelete = canDelete && isSecurityAdmin(user?.role)
+  const canExport = isPrivilegedRole(user?.role)
+  const canReorderFields = isSecurityAdmin(user?.role)
   const canCreateEmpresa = hasPermission(user, 'commercial.empresas', 'create')
+  const canCreateContacto = hasPermission(user, 'commercial.contactos', 'create')
   const canCreateLinea = hasPermission(user, 'commercial.lineas', 'create')
+  const canWriteLinea = hasPermission(user, 'commercial.lineas', 'write')
+  const canCreateCaso = hasPermission(user, 'commercial.casos', 'create')
+  const canWriteCaso = hasPermission(user, 'commercial.casos', 'write')
+  const canCreateDocumento = hasPermission(user, 'commercial.documentos', 'create')
+  const canWriteDocumento = hasPermission(user, 'commercial.documentos', 'write')
 
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
@@ -407,35 +687,137 @@ const ContratoEmpresa = () => {
   const [selectedRelated, setSelectedRelated] = useState({ lineas: '', casos: '', documentos: '' })
   const [showEmpresaModal, setShowEmpresaModal] = useState(false)
   const [empresaForm, setEmpresaForm] = useState(emptyEmpresaForm)
+  const [empresaEditingId, setEmpresaEditingId] = useState(null)
   const [empresaSaving, setEmpresaSaving] = useState(false)
+  const [showContactoModal, setShowContactoModal] = useState(false)
+  const [contactoForm, setContactoForm] = useState(emptyContactoForm)
+  const [contactoEditingId, setContactoEditingId] = useState(null)
+  const [contactoSaving, setContactoSaving] = useState(false)
   const [showLineaModal, setShowLineaModal] = useState(false)
   const [lineaForm, setLineaForm] = useState(emptyLineaForm)
+  const [lineaEditingId, setLineaEditingId] = useState(null)
   const [lineaSaving, setLineaSaving] = useState(false)
+  const [showCasoModal, setShowCasoModal] = useState(false)
+  const [casoForm, setCasoForm] = useState(emptyCasoForm)
+  const [casoEditingId, setCasoEditingId] = useState(null)
+  const [casoSaving, setCasoSaving] = useState(false)
+  const [showDocumentoModal, setShowDocumentoModal] = useState(false)
+  const [documentoForm, setDocumentoForm] = useState(emptyDocumentoForm)
+  const [documentoEditingId, setDocumentoEditingId] = useState(null)
+  const [documentoSaving, setDocumentoSaving] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [searchStatus, setSearchStatus] = useState('idle')
+  const [headerSearchResults, setHeaderSearchResults] = useState([])
+  const [showHeaderSearchResults, setShowHeaderSearchResults] = useState(false)
+  const [activeHeaderSearchIndex, setActiveHeaderSearchIndex] = useState(-1)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState('xlsx')
+  const [draftCreatedAt, setDraftCreatedAt] = useState(() => new Date().toISOString())
+  const [fieldLayout, setFieldLayout] = useState(readStoredFieldLayout)
+  const [draggingField, setDraggingField] = useState(null)
+  const reservedContractCodeRef = useRef('')
+  const headerSearchRef = useRef(null)
+  const headerSearchRequestRef = useRef(0)
+  const exportLogoRef = useRef(null)
+  const openRecordId = searchParams.get('open')
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const empresaRutStatus = useMemo(
     () => getRutStatus(empresaForm.rut, { required: true }),
     [empresaForm.rut],
   )
-  const comunasEmpresa = useMemo(() => getComunasByRegion(empresaForm.region), [empresaForm.region])
+  const ciudadesEmpresa = useMemo(() => getCiudadesByRegion(empresaForm.region), [empresaForm.region])
+  const comunasEmpresa = useMemo(
+    () => getComunasByCity(empresaForm.region, empresaForm.ciudad),
+    [empresaForm.region, empresaForm.ciudad],
+  )
+  const contactoRutStatus = useMemo(
+    () => getRutStatus(contactoForm.rut, { required: false }),
+    [contactoForm.rut],
+  )
+  const selectedContacto = useMemo(
+    () => (lookups.contactos || []).find((item) => String(item.id) === String(form.id_contacto)),
+    [form.id_contacto, lookups.contactos],
+  )
+
+  useEffect(() => {
+    window.localStorage.setItem(contractFieldLayoutStorageKey, JSON.stringify(fieldLayout))
+  }, [fieldLayout])
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!headerSearchRef.current?.contains(event.target)) setShowHeaderSearchResults(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [])
+
+  useEffect(() => {
+    if (!canRead) return undefined
+    const searchText = normalizeSearchQuery(q)
+    const requestId = headerSearchRequestRef.current + 1
+    headerSearchRequestRef.current = requestId
+
+    if (!searchText) {
+      setSearchStatus('idle')
+      setHeaderSearchResults([])
+      setShowHeaderSearchResults(false)
+      setActiveHeaderSearchIndex(-1)
+      return undefined
+    }
+
+    setSearchStatus('loading')
+    setShowHeaderSearchResults(true)
+    setActiveHeaderSearchIndex(-1)
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const res = await api.get('/api/contratos-empresa', {
+          params: {
+            page: 1,
+            pageSize: 8,
+            q: searchText,
+            sortBy: 'updated_at',
+            sortDir: 'desc',
+          },
+        })
+        if (headerSearchRequestRef.current !== requestId) return
+        const results = res.data.items || []
+        setHeaderSearchResults(results)
+        setSearchStatus(results.length ? 'results' : 'empty')
+      } catch (error) {
+        if (headerSearchRequestRef.current !== requestId) return
+        setHeaderSearchResults([])
+        setSearchStatus('error')
+      }
+    }, 320)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [canRead, q])
 
   const loadLookups = async () => {
     const res = await api.get('/api/contratos-empresa/lookups')
     const data = res.data || {}
     setLookups(data)
+    setForm((prev) => {
+      if (current?.id || prev.id_estado_ctr) return prev
+      const defaultEstado = getDefaultEstadoContrato(data)
+      return defaultEstado ? { ...prev, id_estado_ctr: defaultEstado } : prev
+    })
     return data
   }
 
   const loadList = async ({ pageOverride, qOverride } = {}) => {
     setLoading(true)
     try {
+      const searchText = normalizeSearchQuery(qOverride ?? q)
       const res = await api.get('/api/contratos-empresa', {
         params: {
           page: pageOverride ?? page,
           pageSize,
-          q: qOverride ?? q,
+          q: searchText,
           sortBy,
           sortDir,
         },
@@ -446,6 +828,35 @@ const ContratoEmpresa = () => {
       toast.error(error.response?.data?.message || 'No se pudieron cargar contratos empresa')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const releaseReservedContractCode = async (code = reservedContractCodeRef.current) => {
+    if (!code) return
+    reservedContractCodeRef.current = ''
+    try {
+      await api.post('/api/contratos-empresa/release-code', {
+        codigo_contrato_empresa: code,
+      })
+    } catch (error) {
+      // La liberacion es preventiva; no bloquea el trabajo del usuario si falla.
+    }
+  }
+
+  const reserveContractCode = async ({ force = false } = {}) => {
+    if (!canCreate || (!force && current?.id) || reservedContractCodeRef.current) return
+    try {
+      const res = await api.post('/api/contratos-empresa/reserve-code')
+      const code = res.data?.codigo_contrato_empresa || ''
+      if (!code) return
+      reservedContractCodeRef.current = code
+      setForm((prev) => ({
+        ...prev,
+        codigo_contrato_empresa: code,
+        id_estado_ctr: prev.id_estado_ctr || getDefaultEstadoContrato(lookups),
+      }))
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo reservar codigo de contrato')
     }
   }
 
@@ -466,6 +877,36 @@ const ContratoEmpresa = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canRead, page, pageSize, sortBy, sortDir])
 
+  useEffect(() => {
+    if (!canRead) return undefined
+    const recordId = openRecordId
+    if (!recordId || String(current?.id) === String(recordId)) return undefined
+    const timeoutId = window.setTimeout(() => {
+      loadRecord(recordId)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canRead, openRecordId, current?.id])
+
+  useEffect(() => {
+    if (!canRead || !canCreate || current?.id || form.codigo_contrato_empresa) return undefined
+    if (openRecordId) return undefined
+    const timeoutId = window.setTimeout(() => {
+      reserveContractCode()
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canRead, canCreate, current?.id, form.codigo_contrato_empresa, lookups.estados_ctr, openRecordId])
+
+  useEffect(
+    () => () => {
+      const code = reservedContractCodeRef.current
+      if (code) releaseReservedContractCode(code)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
+
   const setField = (field, value, sourceLookups = lookups) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value }
@@ -479,7 +920,6 @@ const ContratoEmpresa = () => {
         const contacto = (sourceLookups.contactos || []).find(
           (item) => String(item.id) === String(value),
         )
-        if (contacto?.rut_empresa) next.rut_empresa = String(contacto.rut_empresa)
         if (contacto?.id_tipo_contacto) next.id_tipo_contacto = String(contacto.id_tipo_contacto)
         if (contacto?.id_estado_contacto)
           next.id_estado_contacto = String(contacto.id_estado_contacto)
@@ -488,16 +928,24 @@ const ContratoEmpresa = () => {
     })
   }
 
-  const resetForm = () => {
+  const resetForm = async ({ reserve = true } = {}) => {
+    await releaseReservedContractCode()
+    setSearchParams({}, { replace: true })
     setCurrent(null)
-    setForm(emptyForm)
+    setDraftCreatedAt(new Date().toISOString())
+    setForm({
+      ...emptyForm,
+      id_estado_ctr: getDefaultEstadoContrato(lookups),
+    })
     setRelated({ lineas: [], casos: [], documentos: [] })
     setSelectedRelated({ lineas: '', casos: '', documentos: '' })
+    if (reserve) window.setTimeout(() => reserveContractCode({ force: true }), 0)
   }
 
   const openEmpresaModal = (suggestedName = '') => {
     if (!canCreateEmpresa) return
     const suggested = suggestedName.trim()
+    setEmpresaEditingId(null)
     setEmpresaForm({
       ...emptyEmpresaForm,
       razon_social: suggested,
@@ -507,33 +955,297 @@ const ContratoEmpresa = () => {
     setShowEmpresaModal(true)
   }
 
+  const openEmpresaEditModal = async (rut = form.rut_empresa) => {
+    if (!rut) return
+    setEmpresaSaving(true)
+    try {
+      const res = await api.get(`/api/commercial/empresas/${encodeURIComponent(rut)}`)
+      const data = res.data || {}
+      setEmpresaEditingId(rut)
+      setEmpresaForm({
+        ...emptyEmpresaForm,
+        rut: data.rut || rut,
+        razon_social: data.razon_social || '',
+        nombre_fantasia: data.nombre_fantasia || '',
+        giro: data.giro || '',
+        rubro: data.rubro || '',
+        id_categoria: data.id_categoria ? String(data.id_categoria) : '',
+        direccion: data.direccion || '',
+        ciudad: data.ciudad || '',
+        region: data.region || '',
+        comuna: data.comuna || '',
+        sitio_web: data.sitio_web || '',
+      })
+      setShowEmpresaModal(true)
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo abrir la empresa')
+    } finally {
+      setEmpresaSaving(false)
+    }
+  }
+
+  const openContactoModal = (suggestedName = '') => {
+    if (!canCreateContacto) return
+    const suggested = suggestedName.trim()
+    setContactoEditingId(null)
+    setContactoForm({
+      ...emptyContactoForm,
+      id_tipo_contacto: form.id_tipo_contacto || '',
+      id_estado_contacto: form.id_estado_contacto || '',
+      nombre: suggested,
+    })
+    setShowContactoModal(true)
+  }
+
+  const openContactoEditModal = async (id = form.id_contacto) => {
+    if (!id) return
+    setContactoSaving(true)
+    try {
+      const res = await api.get(`/api/commercial/contactos/${encodeURIComponent(id)}`)
+      const data = res.data || {}
+      setContactoEditingId(id)
+      setContactoForm({
+        ...emptyContactoForm,
+        id_tipo_contacto: data.id_tipo_contacto ? String(data.id_tipo_contacto) : '',
+        id_estado_contacto: data.id_estado_contacto ? String(data.id_estado_contacto) : '',
+        rut: data.rut || '',
+        nombre: data.nombre || '',
+        cargo: data.cargo || '',
+        email: data.email || '',
+        telefono: data.telefono || '',
+        canal_preferido: data.canal_preferido || '',
+        autoriza_comunicaciones: !!data.autoriza_comunicaciones,
+      })
+      setShowContactoModal(true)
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo abrir el contacto')
+    } finally {
+      setContactoSaving(false)
+    }
+  }
+
+  const normalizeLineaForm = (row = {}) => ({
+    contrato_empresa_id: row.contrato_empresa_id
+      ? String(row.contrato_empresa_id)
+      : current?.id
+        ? String(current.id)
+        : '',
+    titulo: row.titulo || '',
+    id_tipo_servicio: row.id_tipo_servicio ? String(row.id_tipo_servicio) : '',
+    id_tipo_tarifa: row.id_tipo_tarifa ? String(row.id_tipo_tarifa) : '',
+    id_frecuencia: row.id_frecuencia ? String(row.id_frecuencia) : '',
+    fecha_inicio: formatDate(row.fecha_inicio) === '-' ? '' : formatDate(row.fecha_inicio),
+    fecha_inicio_ciclo_facturacion:
+      formatDate(row.fecha_inicio_ciclo_facturacion) === '-'
+        ? ''
+        : formatDate(row.fecha_inicio_ciclo_facturacion),
+    divisa: row.divisa || 'Peso',
+    tarifa_fija: row.tarifa_fija ?? '',
+    moneda_fijo: row.moneda_fijo || '',
+    tarifa_variable: row.tarifa_variable ?? '',
+    moneda_variable: row.moneda_variable || '',
+    unidad_variable: row.unidad_variable || '',
+    iva: row.iva === undefined || row.iva === null ? true : !!row.iva,
+  })
+
   const openLineaModal = () => {
     if (!canCreateLinea) return
+    const contratoId = current?.id || ''
+    setLineaEditingId(null)
     setLineaForm({
       ...emptyLineaForm,
+      contrato_empresa_id: contratoId ? String(contratoId) : '',
       titulo: form.titulo ? `Linea ${form.titulo}` : '',
       id_tipo_servicio: form.id_tipo_servicio || '',
       id_tipo_tarifa: form.id_tipo_tarifa || '',
       id_frecuencia: form.id_frecuencia || '',
       fecha_inicio: form.fecha_inicio || '',
+      divisa: 'Peso',
     })
     setShowLineaModal(true)
   }
 
+  const openLineaEditModal = async (row) => {
+    if (!canWriteLinea) return
+    const lineaId = row?.id_linea
+    if (!lineaId) return
+    setLineaSaving(true)
+    try {
+      const res = await api.get(`/api/commercial/lineas/${encodeURIComponent(lineaId)}`)
+      setLineaEditingId(lineaId)
+      setLineaForm(normalizeLineaForm(res.data))
+      setShowLineaModal(true)
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo abrir la linea')
+    } finally {
+      setLineaSaving(false)
+    }
+  }
+
+  const normalizeCasoForm = (row = {}) => ({
+    id_contacto: row.id_contacto ? String(row.id_contacto) : form.id_contacto || '',
+    contrato_empresa_id: row.contrato_empresa_id
+      ? String(row.contrato_empresa_id)
+      : current?.id
+        ? String(current.id)
+        : '',
+    titulo: row.titulo || '',
+    texto: row.texto || '',
+    relato: row.relato || '',
+    adjuntos: row.adjuntos || '',
+  })
+
+  const openCasoModal = () => {
+    if (!canCreateCaso) return
+    setCasoEditingId(null)
+    setCasoForm({
+      ...emptyCasoForm,
+      id_contacto: form.id_contacto || '',
+      contrato_empresa_id: current?.id ? String(current.id) : '',
+      titulo: form.titulo ? `Caso ${form.titulo}` : '',
+    })
+    setShowCasoModal(true)
+  }
+
+  const openCasoEditModal = async (row) => {
+    if (!canWriteCaso) return
+    const casoId = row?.id_caso
+    if (!casoId) return
+    setCasoSaving(true)
+    try {
+      const res = await api.get(`/api/commercial/casos/${encodeURIComponent(casoId)}`)
+      setCasoEditingId(casoId)
+      setCasoForm(normalizeCasoForm(res.data))
+      setShowCasoModal(true)
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo abrir el caso')
+    } finally {
+      setCasoSaving(false)
+    }
+  }
+
+  const normalizeDocumentoForm = (row = {}) => ({
+    contrato_empresa_id: row.contrato_empresa_id
+      ? String(row.contrato_empresa_id)
+      : current?.id
+        ? String(current.id)
+        : '',
+    tipo_documento: row.tipo_documento || '',
+    nombre: row.nombre || '',
+    descripcion: row.descripcion || '',
+    version: row.version || '',
+    responsable: row.responsable || '',
+    archivo: row.archivo || '',
+    estado: row.estado || '',
+  })
+
+  const openDocumentoModal = () => {
+    if (!canCreateDocumento) return
+    setDocumentoEditingId(null)
+    setDocumentoForm({
+      ...emptyDocumentoForm,
+      contrato_empresa_id: current?.id ? String(current.id) : '',
+    })
+    setShowDocumentoModal(true)
+  }
+
+  const openDocumentoEditModal = async (row) => {
+    if (!canWriteDocumento) return
+    const documentoId = row?.id_documento
+    if (!documentoId) return
+    setDocumentoSaving(true)
+    try {
+      const res = await api.get(`/api/commercial/documentos/${encodeURIComponent(documentoId)}`)
+      setDocumentoEditingId(documentoId)
+      setDocumentoForm(normalizeDocumentoForm(res.data))
+      setShowDocumentoModal(true)
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'No se pudo abrir el documento')
+    } finally {
+      setDocumentoSaving(false)
+    }
+  }
+
   const setLineaField = (field, value) => {
-    setLineaForm((prev) => ({ ...prev, [field]: value }))
+    setLineaForm((prev) => ({
+      ...prev,
+      [field]: value,
+      ...(field === 'divisa'
+        ? {
+            tarifa_fija:
+              prev.tarifa_fija === '' || prev.tarifa_fija == null
+                ? prev.tarifa_fija
+                : formatAmountForInput(prev.tarifa_fija, value),
+            tarifa_variable:
+              prev.tarifa_variable === '' || prev.tarifa_variable == null
+                ? prev.tarifa_variable
+                : formatAmountForInput(prev.tarifa_variable, value),
+          }
+        : {}),
+    }))
+  }
+
+  const closeLineaModal = () => {
+    if (lineaSaving) return
+    setShowLineaModal(false)
+    setLineaEditingId(null)
+    setLineaForm(emptyLineaForm)
+  }
+
+  const setCasoField = (field, value) => {
+    setCasoForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const closeCasoModal = () => {
+    if (casoSaving) return
+    setShowCasoModal(false)
+    setCasoEditingId(null)
+    setCasoForm(emptyCasoForm)
+  }
+
+  const setDocumentoField = (field, value) => {
+    setDocumentoForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const uploadContractFile = async (file, setter, field) => {
+    if (!file) return
+    try {
+      const uploaded = await uploadDocumentFile(file)
+      if (uploaded?.url) setter(field, uploaded.url)
+      toast.success('Archivo cargado')
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const closeDocumentoModal = () => {
+    if (documentoSaving) return
+    setShowDocumentoModal(false)
+    setDocumentoEditingId(null)
+    setDocumentoForm(emptyDocumentoForm)
   }
 
   const setEmpresaField = (field, value) => {
     setEmpresaForm((prev) => {
       const next = { ...prev, [field]: value }
       if (field === 'rut') next.rut = formatRut(value)
-      if (field === 'region' && prev.region !== value) next.comuna = ''
+      if (field === 'region' && prev.region !== value) {
+        next.ciudad = ''
+        next.comuna = ''
+      }
+      if (field === 'ciudad' && prev.ciudad !== value) next.comuna = ''
       return next
     })
   }
 
-  const createEmpresa = async () => {
+  const setContactoField = (field, value) => {
+    setContactoForm((prev) => ({
+      ...prev,
+      [field]: field === 'rut' ? formatRut(value) : value,
+    }))
+  }
+
+  const saveEmpresa = async () => {
     if (!empresaForm.rut || !empresaForm.razon_social || !empresaForm.id_categoria) {
       toast.error('Completa RUT, razon social y categoria para crear la empresa')
       return
@@ -549,12 +1261,17 @@ const ContratoEmpresa = () => {
         ...empresaForm,
         rut: formatRut(empresaForm.rut),
       }
-      const res = await api.post('/api/commercial/empresas', payload)
-      const createdRut = String(res.data?.rut || payload.rut)
+      const res = empresaEditingId
+        ? await api.put(`/api/commercial/empresas/${encodeURIComponent(empresaEditingId)}`, payload)
+        : await api.post('/api/commercial/empresas', payload)
+      const selectedRut = String(empresaEditingId || res.data?.rut || payload.rut)
       const freshLookups = await loadLookups()
-      setField('rut_empresa', createdRut, freshLookups)
+      setField('rut_empresa', selectedRut, freshLookups)
       setShowEmpresaModal(false)
-      toast.success('Empresa creada y seleccionada en el contrato')
+      setEmpresaEditingId(null)
+      toast.success(
+        empresaEditingId ? 'Empresa actualizada en el contrato' : 'Empresa creada y seleccionada en el contrato',
+      )
     } catch (error) {
       const data = error.response?.data
       toast.error(data?.errors?.[0]?.message || data?.message || 'No se pudo crear la empresa')
@@ -563,9 +1280,54 @@ const ContratoEmpresa = () => {
     }
   }
 
-  const createLinea = async () => {
+  const saveContacto = async () => {
+    if (
+      !contactoForm.id_tipo_contacto ||
+      !contactoForm.id_estado_contacto ||
+      !contactoForm.nombre
+    ) {
+      toast.error('Completa tipo, estado y nombre para guardar el contacto')
+      return
+    }
+    if (contactoRutStatus === 'invalid') {
+      toast.error('El RUT del contacto no es valido')
+      return
+    }
+
+    setContactoSaving(true)
+    try {
+      const payload = {
+        ...contactoForm,
+        rut: contactoForm.rut ? formatRut(contactoForm.rut) : null,
+        autoriza_comunicaciones: !!contactoForm.autoriza_comunicaciones,
+      }
+      const res = contactoEditingId
+        ? await api.put(
+            `/api/commercial/contactos/${encodeURIComponent(contactoEditingId)}`,
+            payload,
+          )
+        : await api.post('/api/commercial/contactos', payload)
+      const selectedId = String(contactoEditingId || res.data?.id_contacto || res.data?.id || '')
+      const freshLookups = await loadLookups()
+      setField('id_contacto', selectedId, freshLookups)
+      setShowContactoModal(false)
+      setContactoEditingId(null)
+      toast.success(
+        contactoEditingId
+          ? 'Contacto actualizado en el contrato'
+          : 'Contacto creado y seleccionado en el contrato',
+      )
+    } catch (error) {
+      const data = error.response?.data
+      toast.error(data?.errors?.[0]?.message || data?.message || 'No se pudo crear el contacto')
+    } finally {
+      setContactoSaving(false)
+    }
+  }
+
+  const saveLinea = async () => {
     const requiredLineaFields = [
-      'id_contrato',
+      'contrato_empresa_id',
       'titulo',
       'id_tipo_servicio',
       'id_tipo_tarifa',
@@ -579,54 +1341,169 @@ const ContratoEmpresa = () => {
 
     setLineaSaving(true)
     try {
-      const res = await api.post('/api/commercial/lineas', lineaForm)
-      const createdId = res.data?.id_linea
+      const lineaPayload = {
+        ...lineaForm,
+        divisa: lineaForm.divisa || 'Peso',
+        tarifa_fija:
+          lineaForm.tarifa_fija === '' || lineaForm.tarifa_fija == null
+            ? null
+            : normalizeAmountForSave(lineaForm.tarifa_fija, lineaForm.divisa || 'Peso'),
+        tarifa_variable:
+          lineaForm.tarifa_variable === '' || lineaForm.tarifa_variable == null
+            ? null
+            : normalizeAmountForSave(lineaForm.tarifa_variable, lineaForm.divisa || 'Peso'),
+      }
+      const res = lineaEditingId
+        ? await api.put(`/api/commercial/lineas/${encodeURIComponent(lineaEditingId)}`, lineaPayload)
+        : await api.post('/api/commercial/lineas', lineaPayload)
+      const savedId = lineaEditingId || res.data?.id_linea
       const freshLookups = await loadLookups()
       let refreshedRow = res.data
 
-      if (createdId) {
-        refreshedRow = await fetchMaintainerRow('lineas', createdId)
+      if (savedId) {
+        refreshedRow = await fetchMaintainerRow('lineas', savedId)
       }
 
-      if (current?.id && createdId) {
-        const association = await api.post(`/api/contratos-empresa/${current.id}/lineas`, {
-          id: createdId,
-        })
-        setCurrent(association.data)
-        setRelated({
-          lineas: association.data.lineas || [],
-          casos: association.data.casos || [],
-          documentos: association.data.documentos || [],
-        })
-      } else if (createdId) {
+      if (current?.id && savedId && !lineaEditingId) {
+        await api.post(`/api/contratos-empresa/${current.id}/lineas`, { id: savedId })
+        await loadRecord(current.id)
+      } else if (current?.id && savedId) {
+        await loadRecord(current.id)
+      } else if (savedId) {
         setRelated((prev) => ({
           ...prev,
-          lineas: prev.lineas.some((item) => String(item.id_linea) === String(createdId))
-            ? prev.lineas
+          lineas: prev.lineas.some((item) => String(item.id_linea) === String(savedId))
+            ? prev.lineas.map((item) =>
+                String(item.id_linea) === String(savedId) ? refreshedRow : item,
+              )
             : [...prev.lineas, refreshedRow],
         }))
       }
 
       setSelectedRelated((prev) => ({ ...prev, lineas: '' }))
+      setLineaEditingId(null)
       setLineaForm(emptyLineaForm)
       setShowLineaModal(false)
       setLookups(freshLookups)
-      toast.success('Linea creada y agregada al contrato')
+      toast.success(lineaEditingId ? 'Linea actualizada' : 'Linea creada y agregada al contrato')
     } catch (error) {
       const data = error.response?.data
-      toast.error(data?.errors?.[0]?.message || data?.message || 'No se pudo crear la linea')
+      toast.error(data?.errors?.[0]?.message || data?.message || 'No se pudo guardar la linea')
     } finally {
       setLineaSaving(false)
     }
   }
 
+  const saveCaso = async () => {
+    const missing = ['id_contacto', 'contrato_empresa_id', 'titulo'].filter((field) => !casoForm[field])
+    if (missing.length) {
+      toast.error('Completa contacto, contrato y titulo para guardar el caso')
+      return
+    }
+
+    setCasoSaving(true)
+    try {
+      const res = casoEditingId
+        ? await api.put(`/api/commercial/casos/${encodeURIComponent(casoEditingId)}`, casoForm)
+        : await api.post('/api/commercial/casos', casoForm)
+      const savedId = casoEditingId || res.data?.id_caso
+      const freshLookups = await loadLookups()
+
+      if (current?.id && savedId && !casoEditingId) {
+        await api.post(`/api/contratos-empresa/${current.id}/casos`, { id: savedId })
+        await loadRecord(current.id)
+      } else if (current?.id && savedId) {
+        await loadRecord(current.id)
+      } else if (savedId) {
+        const refreshedRow = await fetchMaintainerRow('casos', savedId)
+        setRelated((prev) => ({
+          ...prev,
+          casos: prev.casos.some((item) => String(item.id_caso) === String(savedId))
+            ? prev.casos.map((item) =>
+                String(item.id_caso) === String(savedId) ? refreshedRow : item,
+              )
+            : [...prev.casos, refreshedRow],
+        }))
+      }
+
+      setSelectedRelated((prev) => ({ ...prev, casos: '' }))
+      setCasoEditingId(null)
+      setCasoForm(emptyCasoForm)
+      setShowCasoModal(false)
+      setLookups(freshLookups)
+      toast.success(casoEditingId ? 'Caso actualizado' : 'Caso creado y agregado al contrato')
+    } catch (error) {
+      const data = error.response?.data
+      toast.error(data?.errors?.[0]?.message || data?.message || 'No se pudo guardar el caso')
+    } finally {
+      setCasoSaving(false)
+    }
+  }
+
+  const saveDocumento = async () => {
+    const missing = ['contrato_empresa_id', 'nombre'].filter((field) => !documentoForm[field])
+    if (missing.length) {
+      toast.error('Completa contrato y nombre para guardar el documento')
+      return
+    }
+
+    setDocumentoSaving(true)
+    try {
+      const res = documentoEditingId
+        ? await api.put(
+            `/api/commercial/documentos/${encodeURIComponent(documentoEditingId)}`,
+            documentoForm,
+          )
+        : await api.post('/api/commercial/documentos', documentoForm)
+      const savedId = documentoEditingId || res.data?.id_documento
+      const freshLookups = await loadLookups()
+
+      if (current?.id && savedId && !documentoEditingId) {
+        await api.post(`/api/contratos-empresa/${current.id}/documentos`, { id: savedId })
+        await loadRecord(current.id)
+      } else if (current?.id && savedId) {
+        await loadRecord(current.id)
+      } else if (savedId) {
+        const refreshedRow = await fetchMaintainerRow('documentos', savedId)
+        setRelated((prev) => ({
+          ...prev,
+          documentos: prev.documentos.some(
+            (item) => String(item.id_documento) === String(savedId),
+          )
+            ? prev.documentos.map((item) =>
+                String(item.id_documento) === String(savedId) ? refreshedRow : item,
+              )
+            : [...prev.documentos, refreshedRow],
+        }))
+      }
+
+      setSelectedRelated((prev) => ({ ...prev, documentos: '' }))
+      setDocumentoEditingId(null)
+      setDocumentoForm(emptyDocumentoForm)
+      setShowDocumentoModal(false)
+      setLookups(freshLookups)
+      toast.success(
+        documentoEditingId ? 'Documento actualizado' : 'Documento creado y agregado al contrato',
+      )
+    } catch (error) {
+      const data = error.response?.data
+      toast.error(data?.errors?.[0]?.message || data?.message || 'No se pudo guardar el documento')
+    } finally {
+      setDocumentoSaving(false)
+    }
+  }
+
   const loadRecord = async (id) => {
     try {
+      await releaseReservedContractCode()
       const res = await api.get(`/api/contratos-empresa/${id}`)
       const data = res.data
       setCurrent(data)
+      setSearchParams({ open: String(data.id || id) }, { replace: true })
+      setDraftCreatedAt(data.created_at || new Date().toISOString())
       setForm({
         rut_empresa: data.rut_empresa || '',
+        codigo_contrato_empresa: data.codigo_contrato_empresa || '',
         id_categoria: data.id_categoria ? String(data.id_categoria) : '',
         id_tipo_servicio: data.id_tipo_servicio ? String(data.id_tipo_servicio) : '',
         id_estado_vital: data.id_estado_vital ? String(data.id_estado_vital) : '',
@@ -681,12 +1558,26 @@ const ContratoEmpresa = () => {
       if (current?.id) {
         const res = await api.put(`/api/contratos-empresa/${current.id}`, buildPayload())
         setCurrent(res.data)
+        setSearchParams({ open: String(res.data?.id || current.id) }, { replace: true })
+        setForm((prev) => ({
+          ...prev,
+          codigo_contrato_empresa: res.data?.codigo_contrato_empresa || prev.codigo_contrato_empresa,
+        }))
         toast.success('Contrato empresa actualizado')
       } else {
         const res = await api.post('/api/contratos-empresa', buildPayload())
+        reservedContractCodeRef.current = ''
         setCurrent(res.data)
+        setSearchParams({ open: String(res.data?.id) }, { replace: true })
+        setDraftCreatedAt(res.data?.created_at || draftCreatedAt)
+        setForm((prev) => ({
+          ...prev,
+          codigo_contrato_empresa: res.data?.codigo_contrato_empresa || prev.codigo_contrato_empresa,
+        }))
         toast.success('Contrato empresa creado')
       }
+      const freshLookups = await loadLookups()
+      setLookups(freshLookups)
       await loadList()
     } catch (error) {
       const data = error.response?.data
@@ -697,15 +1588,15 @@ const ContratoEmpresa = () => {
   }
 
   const deactivate = async () => {
-    if (!current?.id || !canDelete) return
-    if (!window.confirm(`Seguro que deseas desactivar "${current.titulo}"?`)) return
+    if (!current?.id || !canHardDelete) return
+    if (!window.confirm(`Seguro que deseas eliminar "${current.titulo}"?`)) return
     try {
       await api.delete(`/api/contratos-empresa/${current.id}`)
-      toast.success('Contrato empresa desactivado')
-      resetForm()
+      toast.success('Contrato empresa eliminado')
+      await resetForm()
       await loadList()
     } catch (error) {
-      toast.error(error.response?.data?.message || 'No se pudo desactivar')
+      toast.error(error.response?.data?.message || 'No se pudo eliminar')
     }
   }
 
@@ -778,8 +1669,48 @@ const ContratoEmpresa = () => {
   }
 
   const openMaintainer = (type, row) => {
+    if (type === 'lineas') {
+      openLineaEditModal(row)
+      return
+    }
+    if (type === 'casos') {
+      openCasoEditModal(row)
+      return
+    }
+    if (type === 'documentos') {
+      openDocumentoEditModal(row)
+      return
+    }
     const config = relatedConfig[type]
     navigate(`${config.route}?open=${encodeURIComponent(row[config.idField])}&mode=edit`)
+  }
+
+  const openRelatedCreateModal = (type) => {
+    if (type === 'lineas') {
+      openLineaModal()
+      return
+    }
+    if (type === 'casos') {
+      openCasoModal()
+      return
+    }
+    if (type === 'documentos') {
+      openDocumentoModal()
+    }
+  }
+
+  const canCreateRelated = (type) => {
+    if (type === 'lineas') return canCreateLinea
+    if (type === 'casos') return canCreateCaso
+    if (type === 'documentos') return canCreateDocumento
+    return canCreate
+  }
+
+  const canWriteRelated = (type) => {
+    if (type === 'lineas') return canWriteLinea
+    if (type === 'casos') return canWriteCaso
+    if (type === 'documentos') return canWriteDocumento
+    return canWrite
   }
 
   const handleSort = (key) => {
@@ -790,8 +1721,203 @@ const ContratoEmpresa = () => {
   }
 
   const onSearch = () => {
+    const searchText = normalizeSearchQuery(q)
+    setQ(searchText)
     setPage(1)
-    loadList({ pageOverride: 1 }).catch(() => {})
+    loadList({ pageOverride: 1, qOverride: searchText }).catch(() => {})
+  }
+
+  const clearHeaderSearch = () => {
+    headerSearchRequestRef.current += 1
+    setQ('')
+    setSearchStatus('idle')
+    setHeaderSearchResults([])
+    setShowHeaderSearchResults(false)
+    setActiveHeaderSearchIndex(-1)
+    setPage(1)
+    loadList({ pageOverride: 1, qOverride: '' }).catch(() => {})
+  }
+
+  const fetchExportRows = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+    const dateParams = buildDateRangeParams({
+      dateFrom: dateFromOverride,
+      dateTo: dateToOverride,
+    })
+    if (!allRecords) {
+      const res = await api.get('/api/contratos-empresa', {
+        params: {
+          page,
+          pageSize,
+          q: normalizeSearchQuery(q),
+          sortBy,
+          sortDir,
+          ...dateParams,
+        },
+      })
+      return res.data.items || []
+    }
+
+    const all = []
+    let pageAll = 1
+    const pageSizeAll = 100
+    while (true) {
+      const res = await api.get('/api/contratos-empresa', {
+        params: {
+          page: pageAll,
+          pageSize: pageSizeAll,
+          q: normalizeSearchQuery(q),
+          sortBy,
+          sortDir,
+          ...dateParams,
+        },
+      })
+      const batch = res.data.items || []
+      all.push(...batch)
+      if (all.length >= Number(res.data.total || 0) || batch.length < pageSizeAll) break
+      pageAll += 1
+    }
+    return all
+  }
+
+  const exportContractsExcel = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+    setExporting(true)
+    try {
+      const rows = await fetchExportRows({ allRecords, dateFromOverride, dateToOverride })
+      const exportRows = rows.map((row) =>
+        contractExportColumns.reduce((acc, [field, label]) => {
+          acc[label] = field.startsWith('fecha') || field.endsWith('_at')
+            ? formatDateTime(row[field])
+            : formatValue(row[field])
+          return acc
+        }, {}),
+      )
+      const dateTag = new Date().toISOString().slice(0, 10)
+      await exportToXlsx({
+        fileName: `contratos_empresa_${dateTag}.xlsx`,
+        sheetName: 'Contratos Empresa',
+        rows: exportRows,
+      })
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo exportar')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const exportContractsPdf = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+    setExporting(true)
+    try {
+      const rows = await fetchExportRows({ allRecords, dateFromOverride, dateToOverride })
+      const head = contractExportColumns.map(([, label]) => label)
+      const body = rows.map((row) =>
+        contractExportColumns.map(([field]) =>
+          String(
+            field.startsWith('fecha') || field.endsWith('_at')
+              ? formatDateTime(row[field])
+              : formatValue(row[field]),
+          ),
+        ),
+      )
+      const dateTag = new Date().toISOString().slice(0, 10)
+      if (!exportLogoRef.current) {
+        try {
+          const res = await fetch(logoUcm)
+          const blob = await res.blob()
+          exportLogoRef.current = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(String(reader.result || ''))
+            reader.onerror = () => resolve('')
+            reader.readAsDataURL(blob)
+          })
+        } catch {
+          exportLogoRef.current = ''
+        }
+      }
+      await exportToPdf({
+        fileName: `contratos_empresa_${dateTag}.pdf`,
+        title: 'Contratos Empresa',
+        head,
+        body,
+        logoDataUrl: exportLogoRef.current || undefined,
+        metaRight: `Fecha: ${dateTag}`,
+      })
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo exportar')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const openExport = (format) => {
+    if (!canExport) return
+    setExportFormat(format)
+    setExportModalOpen(true)
+  }
+
+  const confirmExport = async ({ allRecords, dateFrom, dateTo, format }) => {
+    if (format === 'pdf') {
+      await exportContractsPdf({ allRecords, dateFromOverride: dateFrom, dateToOverride: dateTo })
+    } else {
+      await exportContractsExcel({ allRecords, dateFromOverride: dateFrom, dateToOverride: dateTo })
+    }
+    setExportModalOpen(false)
+  }
+
+  const openHeaderSearchResult = async (item) => {
+    if (!item?.id) return
+    setShowHeaderSearchResults(false)
+    setActiveHeaderSearchIndex(-1)
+    await loadRecord(item.id)
+  }
+
+  const searchAndOpen = async ({ openFirst = true } = {}) => {
+    const searchText = normalizeSearchQuery(q)
+    setQ(searchText)
+    setPage(1)
+    setShowHeaderSearchResults(!!searchText)
+    if (!searchText) {
+      clearHeaderSearch()
+      return
+    }
+    if (openFirst && headerSearchResults.length > 0) {
+      await openHeaderSearchResult(
+        activeHeaderSearchIndex >= 0
+          ? headerSearchResults[activeHeaderSearchIndex]
+          : headerSearchResults[0],
+      )
+      return
+    }
+    const requestId = headerSearchRequestRef.current + 1
+    headerSearchRequestRef.current = requestId
+    setSearchStatus('loading')
+    setLoading(true)
+    try {
+      const res = await api.get('/api/contratos-empresa', {
+        params: {
+          page: 1,
+          pageSize: 8,
+          q: searchText,
+          sortBy: 'updated_at',
+          sortDir: 'desc',
+        },
+      })
+      if (headerSearchRequestRef.current !== requestId) return
+      const results = res.data.items || []
+      setItems(results)
+      setTotal(Number(res.data.total || 0))
+      setHeaderSearchResults(results)
+      if (openFirst && results.length === 1) {
+        await openHeaderSearchResult(results[0])
+        setShowHeaderSearchResults(false)
+      }
+      setSearchStatus(results.length ? 'results' : 'empty')
+    } catch (error) {
+      if (headerSearchRequestRef.current !== requestId) return
+      setSearchStatus('error')
+      toast.error(error.response?.data?.message || 'No se pudieron buscar contratos')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const renderRelatedSection = (type) => {
@@ -808,15 +1934,17 @@ const ContratoEmpresa = () => {
             onChange={(value) => setSelectedRelated((prev) => ({ ...prev, [type]: value }))}
             disabled={saving || (!current?.id && !canCreate) || (current?.id && !canWrite)}
             placeholder={`Escribe para buscar ${config.title.toLowerCase()}...`}
+            hideLabel
           />
           <CButton
             color="primary"
-            onClick={() => (type === 'lineas' ? openLineaModal() : addRelated(type))}
+            onClick={() => openRelatedCreateModal(type)}
             disabled={
               saving ||
               (!current?.id && !canCreate) ||
               (current?.id && !canWrite) ||
-              (type === 'lineas' && !canCreateLinea)
+              !current?.id ||
+              !canCreateRelated(type)
             }
           >
             <CIcon icon={cilPlus} className="me-1" />
@@ -840,10 +1968,32 @@ const ContratoEmpresa = () => {
                 <CTableRow
                   key={`${type}-${row[config.idField]}`}
                   className="contract-related-row"
-                  onClick={() => openMaintainer(type, row)}
+                  onClick={() => (!canWriteRelated(type) ? undefined : openMaintainer(type, row))}
                 >
                   {config.columns.map(([field]) => (
-                    <CTableDataCell key={field}>{formatValue(row[field])}</CTableDataCell>
+                    <CTableDataCell key={field}>
+                      {type === 'casos' && field === 'adjuntos' ? (
+                        getAttachmentUrl(row[field]) ? (
+                          <CButton
+                            as="a"
+                            href={getAttachmentUrl(row[field])}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="sm"
+                            color="secondary"
+                            variant="outline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <CIcon icon={cilCloudDownload} className="me-1" />
+                            Bajar
+                          </CButton>
+                        ) : (
+                          '-'
+                        )
+                      ) : type === 'lineas' && ['tarifa_fija', 'tarifa_variable'].includes(field)
+                        ? formatCurrencyAmount(row[field], row.divisa)
+                        : formatValue(row[field])}
+                    </CTableDataCell>
                   ))}
                   <CTableDataCell onClick={(event) => event.stopPropagation()}>
                     <CButtonGroup size="sm">
@@ -851,6 +2001,7 @@ const ContratoEmpresa = () => {
                         color="secondary"
                         variant="outline"
                         onClick={() => openMaintainer(type, row)}
+                        disabled={!canWriteRelated(type)}
                       >
                         <CIcon icon={cilPencil} />
                       </CButton>
@@ -885,8 +2036,270 @@ const ContratoEmpresa = () => {
     )
   }
 
+  const renderDraggableField = (section, field, content, { md = 6 } = {}) => (
+    <CCol
+      md={md}
+      key={`${section}-${field}`}
+      className={`contract-draggable-field ${
+        canReorderFields && draggingField?.section === section && draggingField?.field === field
+          ? 'is-dragging'
+          : ''
+      }`}
+      onDragOver={(event) => {
+        if (canReorderFields && draggingField?.section === section) event.preventDefault()
+      }}
+      onDrop={(event) => {
+        if (!canReorderFields) return
+        event.preventDefault()
+        if (draggingField?.section !== section) return
+        setFieldLayout((prev) => moveFieldInSection(prev, section, draggingField.field, field))
+        setDraggingField(null)
+      }}
+    >
+      {canReorderFields && (
+        <span
+          className="contract-drag-handle"
+          draggable
+          title="Arrastrar campo"
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = 'move'
+            setDraggingField({ section, field })
+          }}
+          onDragEnd={() => setDraggingField(null)}
+        >
+          <span />
+        </span>
+      )}
+      {content}
+    </CCol>
+  )
+
+  const companyFieldRenderers = {
+    empresa: () =>
+      renderDraggableField(
+        'company',
+        'empresa',
+        <SearchableLookupField
+          label="Empresa"
+          icon={cilBuilding}
+          value={form.rut_empresa}
+          options={lookups.empresas || []}
+          onChange={(value) => setField('rut_empresa', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar empresa..."
+          footerActionLabel={canCreateEmpresa ? 'Agregar empresa' : null}
+          onFooterAction={canCreateEmpresa ? openEmpresaModal : undefined}
+          selectedActionLabel="Abrir empresa seleccionada"
+          onSelectedAction={openEmpresaEditModal}
+        />,
+      ),
+    categoria: () =>
+      renderDraggableField(
+        'company',
+        'categoria',
+        <SearchableLookupField
+          label="Categoria"
+          icon={cilBriefcase}
+          value={form.id_categoria}
+          options={lookups.categorias || []}
+          onChange={(value) => setField('id_categoria', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar categoria..."
+        />,
+      ),
+  }
+
+  const contractFieldRenderers = {
+    titulo: () =>
+      renderDraggableField(
+        'contract',
+        'titulo',
+        <div className="contract-field">
+          <CFormLabel>
+            <CIcon icon={cilDescription} />
+            Titulo <span className="text-danger">*</span>
+          </CFormLabel>
+          <CFormInput value={form.titulo} onChange={(event) => setField('titulo', event.target.value)} />
+        </div>,
+        { md: 12 },
+      ),
+    tipo_servicio: () =>
+      renderDraggableField(
+        'contract',
+        'tipo_servicio',
+        <SearchableLookupField
+          label="Tipo de servicio"
+          icon={cilList}
+          value={form.id_tipo_servicio}
+          options={lookups.tipo_servicios || []}
+          onChange={(value) => setField('id_tipo_servicio', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar tipo de servicio..."
+        />,
+      ),
+    estado_vital: () =>
+      renderDraggableField(
+        'contract',
+        'estado_vital',
+        <SearchableLookupField
+          label="Estado vital"
+          icon={cilCheckCircle}
+          value={form.id_estado_vital}
+          options={lookups.estado_vitales || []}
+          onChange={(value) => setField('id_estado_vital', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar estado vital..."
+        />,
+      ),
+    fecha_firma: () => renderDateField('fecha_firma', 'Fecha firma'),
+    fecha_inicio: () => renderDateField('fecha_inicio', 'Fecha inicio'),
+    fecha_termino: () => renderDateField('fecha_termino', 'Fecha termino'),
+    fecha_facturacion: () => renderDateField('fecha_facturacion', 'Fecha facturacion'),
+    medio_pago: () =>
+      renderDraggableField(
+        'contract',
+        'medio_pago',
+        <div className="contract-field">
+          <CFormLabel>
+            <CIcon icon={cilMoney} />
+            Medio de pago
+          </CFormLabel>
+          <CFormInput value={form.medio_pago} onChange={(event) => setField('medio_pago', event.target.value)} />
+        </div>,
+      ),
+    multa: () =>
+      renderDraggableField(
+        'contract',
+        'multa',
+        <div className="contract-field">
+          <CFormLabel>
+            <CIcon icon={cilMoney} />
+            Multa
+          </CFormLabel>
+          <CFormInput type="number" value={form.multa} onChange={(event) => setField('multa', event.target.value)} />
+        </div>,
+      ),
+    frecuencia: () =>
+      renderDraggableField(
+        'contract',
+        'frecuencia',
+        <SearchableLookupField
+          label="Frecuencia de facturacion"
+          icon={cilCalendar}
+          value={form.id_frecuencia}
+          options={lookups.frecuencias || []}
+          onChange={(value) => setField('id_frecuencia', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar frecuencia..."
+        />,
+      ),
+    tipo_tarifa: () =>
+      renderDraggableField(
+        'contract',
+        'tipo_tarifa',
+        <SearchableLookupField
+          label="Tipo de tarifa"
+          icon={cilMoney}
+          value={form.id_tipo_tarifa}
+          options={lookups.tipo_tarifas || []}
+          onChange={(value) => setField('id_tipo_tarifa', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar tipo de tarifa..."
+        />,
+      ),
+    reajustable: () =>
+      renderDraggableField(
+        'contract',
+        'reajustable',
+        <CFormSwitch
+          className="boolean-switch-field"
+          label="Reajustable"
+          checked={!!form.reajustable}
+          onChange={(event) => setField('reajustable', event.target.checked)}
+        />,
+      ),
+    requiere_orden_compra: () =>
+      renderDraggableField(
+        'contract',
+        'requiere_orden_compra',
+        <CFormSwitch
+          className="boolean-switch-field"
+          label="Requiere orden de compra"
+          checked={!!form.requiere_orden_compra}
+          onChange={(event) => setField('requiere_orden_compra', event.target.checked)}
+        />,
+      ),
+  }
+
+  function renderDateField(field, label) {
+    return renderDraggableField(
+      'contract',
+      field,
+      <div className="contract-field">
+        <CFormLabel>
+          <CIcon icon={cilCalendar} />
+          {label}
+        </CFormLabel>
+        <CFormInput type="date" value={form[field]} onChange={(event) => setField(field, event.target.value)} />
+      </div>,
+    )
+  }
+
+  const contactFieldRenderers = {
+    contacto: () =>
+      renderDraggableField(
+        'contact',
+        'contacto',
+        <SearchableLookupField
+          label="Contacto"
+          icon={cilAddressBook}
+          value={form.id_contacto}
+          options={lookups.contactos || []}
+          onChange={(value) => setField('id_contacto', value)}
+          required
+          disabled={saving}
+          placeholder="Escribe para buscar contacto..."
+          footerActionLabel={canCreateContacto ? 'Agregar contacto' : null}
+          onFooterAction={canCreateContacto ? openContactoModal : undefined}
+          selectedActionLabel="Abrir contacto seleccionado"
+          onSelectedAction={openContactoEditModal}
+        />,
+        { md: 12 },
+      ),
+    telefono_contacto: () =>
+      renderDraggableField(
+        'contact',
+        'telefono_contacto',
+        <div className="contract-field readonly">
+          <CFormLabel>
+            <CIcon icon={cilAddressBook} />
+            Telefono
+          </CFormLabel>
+          <strong>{formatValue(selectedContacto?.telefono)}</strong>
+        </div>,
+      ),
+    email_contacto: () =>
+      renderDraggableField(
+        'contact',
+        'email_contacto',
+        <div className="contract-field readonly">
+          <CFormLabel>
+            <CIcon icon={cilCheckCircle} />
+            Email
+          </CFormLabel>
+          <strong>{formatValue(selectedContacto?.email)}</strong>
+        </div>,
+      ),
+  }
+
   if (!canRead) {
-    return <CAlert color="warning">No tienes permisos para leer Contrato Empresa.</CAlert>
+    return <CAlert color="warning">No tienes permisos para leer Contratos.</CAlert>
   }
 
   return (
@@ -894,102 +2307,165 @@ const ContratoEmpresa = () => {
       <div className="contract-company-shell">
         <div className="contract-company-topbar">
           <img src={logoUcm} alt="UCM" />
-          <div className="contract-company-search">
-            <CIcon icon={cilSearch} />
-            <CFormInput
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              onKeyDown={runOnEnter(onSearch)}
-            />
-          </div>
-          <span className="contract-company-user">
-            {user?.firstName || user?.username || 'Usuario'}
-          </span>
-        </div>
-
-        <CCard className="contract-company-list-card">
-          <CCardHeader className="d-flex justify-content-between align-items-center">
-            <div className="d-flex align-items-center">
-              <CIcon icon={cilBriefcase} className="me-2" />
-              <span>Contrato Empresa</span>
-            </div>
-            <div className="d-flex gap-2">
-              <CButton color="secondary" variant="outline" onClick={onSearch} disabled={loading}>
-                <CIcon icon={cilSearch} className="me-1" />
-                Buscar
-              </CButton>
-              {canCreate && (
-                <CButton color="primary" onClick={resetForm}>
-                  <CIcon icon={cilPlus} className="me-1" />
-                  Nuevo
+          <div className="contract-company-header-search" ref={headerSearchRef}>
+            <div className="contract-company-search">
+              <CIcon icon={cilSearch} />
+              <CFormInput
+                value={q}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setQ(value)
+                  if (!value.trim()) setShowHeaderSearchResults(false)
+                }}
+                onFocus={() => {
+                  if (normalizeSearchQuery(q)) setShowHeaderSearchResults(true)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    setShowHeaderSearchResults(true)
+                    setActiveHeaderSearchIndex((prev) =>
+                      Math.min(prev + 1, headerSearchResults.length - 1),
+                    )
+                    return
+                  }
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    setActiveHeaderSearchIndex((prev) => Math.max(prev - 1, 0))
+                    return
+                  }
+                  if (event.key === 'Escape') {
+                    setShowHeaderSearchResults(false)
+                    return
+                  }
+                  runOnEnter(() => searchAndOpen({ openFirst: true }))(event)
+                }}
+                placeholder="Buscar por codigo contrato, RUT empresa o razon social..."
+              />
+              {q && (
+                <CButton
+                  className="contract-header-button"
+                  type="button"
+                  onClick={clearHeaderSearch}
+                  disabled={loading}
+                >
+                  <CIcon icon={cilX} />
                 </CButton>
               )}
+              <CButton
+                className="contract-header-button contract-header-button-search"
+                type="button"
+                onClick={() => searchAndOpen({ openFirst: true })}
+                disabled={loading}
+              >
+                <CIcon icon={cilSearch} />
+              </CButton>
             </div>
-          </CCardHeader>
-          <CCardBody>
-            <div className="macos-grid contract-company-list-grid">
-              <CTable hover responsive>
-                <CTableHead>
-                  <CTableRow>
-                    {[
-                      { key: 'id', label: 'ID' },
-                      { key: 'titulo', label: 'Titulo' },
-                      { key: 'empresa', label: 'Empresa' },
-                      { key: 'estado_ctr', label: 'Estado' },
-                      { key: 'fecha_inicio', label: 'Inicio' },
-                      { key: 'updated_at', label: 'Actualizado' },
-                    ].map((column) => (
-                      <SortableTableHeader
-                        key={column.key}
-                        column={column}
-                        sortBy={sortBy}
-                        sortDir={sortDir}
-                        onSort={handleSort}
-                      />
-                    ))}
-                  </CTableRow>
-                </CTableHead>
-                <CTableBody>
-                  {items.map((item) => (
-                    <CTableRow
-                      key={item.id}
-                      onClick={() => loadRecord(item.id)}
-                      className="contract-related-row"
-                    >
-                      <CTableDataCell>{item.id}</CTableDataCell>
-                      <CTableDataCell>{item.titulo}</CTableDataCell>
-                      <CTableDataCell>{item.empresa}</CTableDataCell>
-                      <CTableDataCell>{item.estado_ctr}</CTableDataCell>
-                      <CTableDataCell>{formatDate(item.fecha_inicio)}</CTableDataCell>
-                      <CTableDataCell>{formatDateTime(item.updated_at)}</CTableDataCell>
-                    </CTableRow>
-                  ))}
-                  {items.length === 0 && (
-                    <CTableRow>
-                      <CTableDataCell colSpan={6} className="text-center text-body-secondary">
-                        Sin contratos empresa registrados
-                      </CTableDataCell>
-                    </CTableRow>
-                  )}
-                </CTableBody>
-              </CTable>
+            {showHeaderSearchResults &&
+              normalizeSearchQuery(q) &&
+              (headerSearchResults.length > 0 || ['loading', 'empty', 'error'].includes(searchStatus)) && (
+              <div className="contract-search-results">
+                {searchStatus === 'loading' && (
+                  <div className="contract-search-result">
+                    <span>...</span>
+                    <strong>Buscando contratos</strong>
+                    <em>Un momento</em>
+                  </div>
+                )}
+                {searchStatus === 'empty' && (
+                  <div className="contract-search-result">
+                    <span>0</span>
+                    <strong>Sin resultados</strong>
+                    <em>Prueba con otro texto</em>
+                  </div>
+                )}
+                {searchStatus === 'error' && (
+                  <div className="contract-search-result">
+                    <span>!</span>
+                    <strong>No se pudo buscar</strong>
+                    <em>Intenta nuevamente</em>
+                  </div>
+                )}
+                {headerSearchResults.slice(0, 6).map((item, index) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`contract-search-result ${
+                      String(current?.id) === String(item.id) ? 'active' : ''
+                    } ${
+                      activeHeaderSearchIndex === index ? 'is-keyboard-active' : ''
+                    }`}
+                    onMouseEnter={() => setActiveHeaderSearchIndex(index)}
+                    onClick={() => openHeaderSearchResult(item)}
+                  >
+                    <span>#{item.id}</span>
+                    <strong>{item.titulo}</strong>
+                    <em>{item.empresa}</em>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {canExport && (
+            <div className="contract-export-box">
+              <CButton
+                color="secondary"
+                variant="outline"
+                onClick={() => openExport('xlsx')}
+                disabled={exporting || loading}
+              >
+                <CIcon icon={cilCloudDownload} />
+                Excel
+              </CButton>
+              <CButton
+                color="secondary"
+                variant="outline"
+                onClick={() => openExport('pdf')}
+                disabled={exporting || loading}
+              >
+                <CIcon icon={cilCloudDownload} />
+                PDF
+              </CButton>
             </div>
-            <GridPaginationBar
-              total={total}
-              page={page}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              disabled={loading}
-              onPageChange={setPage}
-              onPageSizeChange={(next) => {
-                setPageSize(Number(next))
-                setPage(1)
-              }}
-            />
-          </CCardBody>
-        </CCard>
+          )}
+          <div className="contract-header-actions">
+            {canCreate && (
+              <CButton
+                className="contract-header-button contract-header-button-new"
+                type="button"
+                onClick={() => resetForm()}
+              >
+                <CIcon icon={cilPlus} />
+                Nuevo
+              </CButton>
+            )}
+            {(current?.id ? canWrite : canCreate) && (
+              <CButton
+                className="contract-header-button contract-header-button-edit"
+                type="submit"
+                form="contract-company-form"
+                disabled={saving}
+              >
+                <CIcon icon={cilSave} />
+                {saving ? 'Guardando...' : 'Guardar'}
+              </CButton>
+            )}
+            {current?.id && canHardDelete && (
+              <CButton
+                className="contract-header-button contract-header-button-delete"
+                type="button"
+                onClick={deactivate}
+                disabled={saving}
+              >
+                <CIcon icon={cilTrash} />
+                Eliminar
+              </CButton>
+            )}
+          </div>
+        </div>
 
         <CForm
+          id="contract-company-form"
           onSubmit={(event) => {
             event.preventDefault()
             submit()
@@ -1001,28 +2477,46 @@ const ContratoEmpresa = () => {
             className="contract-header-section"
           >
             <CRow className="g-3">
-              <CCol md={3}>
-                <SearchableLookupField
-                  label="Estado contrato"
-                  icon={cilCheckCircle}
-                  value={form.id_estado_ctr}
-                  options={lookups.estados_ctr || []}
-                  onChange={(value) => setField('id_estado_ctr', value)}
-                  required
-                  disabled={saving}
-                  placeholder="Escribe para buscar estado..."
-                />
+              <CCol md={2}>
+                <div className="contract-field readonly">
+                  <CFormLabel>
+                    <CIcon icon={cilDescription} />
+                    Codigo contrato
+                  </CFormLabel>
+                  <strong>{form.codigo_contrato_empresa || 'Reservando codigo...'}</strong>
+                </div>
               </CCol>
-              <CCol md={3}>
+              <CCol md={2}>
+                <div className="contract-field contract-header-field">
+                  <CFormLabel>
+                    <CIcon icon={cilCheckCircle} />
+                    Estado contrato <span className="text-danger">*</span>
+                  </CFormLabel>
+                  <CFormSelect
+                    value={form.id_estado_ctr}
+                    onChange={(event) => setField('id_estado_ctr', event.target.value)}
+                    required
+                    disabled={saving}
+                  >
+                    <option value="">Seleccione...</option>
+                    {(lookups.estados_ctr || []).map((item) => (
+                      <option key={item.id} value={String(item.id)}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </div>
+              </CCol>
+              <CCol md={2}>
                 <div className="contract-field readonly">
                   <CFormLabel>
                     <CIcon icon={cilCalendar} />
                     Fecha creacion
                   </CFormLabel>
-                  <strong>{formatDateTime(current?.created_at)}</strong>
+                  <strong>{formatDateTime(current?.created_at || draftCreatedAt)}</strong>
                 </div>
               </CCol>
-              <CCol md={3}>
+              <CCol md={2}>
                 <div className="contract-field readonly">
                   <CFormLabel>
                     <CIcon icon={cilCalendar} />
@@ -1031,214 +2525,36 @@ const ContratoEmpresa = () => {
                   <strong>{formatDateTime(current?.updated_at)}</strong>
                 </div>
               </CCol>
-              <CCol md={3}>
+              <CCol md={4}>
                 <div className="contract-field readonly">
                   <CFormLabel>
                     <CIcon icon={cilAddressBook} />
                     Usuario
                   </CFormLabel>
-                  <strong>{current?.usuario_modificador || current?.usuario_creador || '-'}</strong>
+                  <strong>
+                    {current?.usuario_modificador || current?.usuario_creador || getDisplayUser(user)}
+                  </strong>
                 </div>
               </CCol>
             </CRow>
           </ContractSection>
 
           <div className="contract-company-form-grid">
-            <ContractSection title="Datos Empresa" icon={cilBuilding}>
+            <ContractSection title="Datos Empresa" icon={cilBuilding} className="contract-company-section-company">
               <CRow className="g-3">
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Empresa"
-                    icon={cilBuilding}
-                    value={form.rut_empresa}
-                    options={lookups.empresas || []}
-                    onChange={(value) => setField('rut_empresa', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar empresa..."
-                    footerActionLabel={canCreateEmpresa ? 'Agregar empresa' : null}
-                    onFooterAction={canCreateEmpresa ? openEmpresaModal : undefined}
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Categoria"
-                    icon={cilBriefcase}
-                    value={form.id_categoria}
-                    options={lookups.categorias || []}
-                    onChange={(value) => setField('id_categoria', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar categoria..."
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Tipo de servicio"
-                    icon={cilList}
-                    value={form.id_tipo_servicio}
-                    options={lookups.tipo_servicios || []}
-                    onChange={(value) => setField('id_tipo_servicio', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar tipo de servicio..."
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Estado vital"
-                    icon={cilCheckCircle}
-                    value={form.id_estado_vital}
-                    options={lookups.estado_vitales || []}
-                    onChange={(value) => setField('id_estado_vital', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar estado vital..."
-                  />
-                </CCol>
+                {fieldLayout.company.map((field) => companyFieldRenderers[field]?.())}
               </CRow>
             </ContractSection>
 
-            <ContractSection title="Datos Contrato" icon={cilDescription}>
+            <ContractSection title="Datos Contrato" icon={cilDescription} className="contract-company-section-contract">
               <CRow className="g-3">
-                <CCol md={12}>
-                  <div className="contract-field">
-                    <CFormLabel>
-                      <CIcon icon={cilDescription} />
-                      Titulo <span className="text-danger">*</span>
-                    </CFormLabel>
-                    <CFormInput
-                      value={form.titulo}
-                      onChange={(event) => setField('titulo', event.target.value)}
-                    />
-                  </div>
-                </CCol>
-                {[
-                  ['fecha_firma', 'Fecha firma'],
-                  ['fecha_inicio', 'Fecha inicio'],
-                  ['fecha_termino', 'Fecha termino'],
-                  ['fecha_facturacion', 'Fecha facturacion'],
-                ].map(([field, label]) => (
-                  <CCol md={6} key={field}>
-                    <div className="contract-field">
-                      <CFormLabel>
-                        <CIcon icon={cilCalendar} />
-                        {label}
-                      </CFormLabel>
-                      <CFormInput
-                        type="date"
-                        value={form[field]}
-                        onChange={(event) => setField(field, event.target.value)}
-                      />
-                    </div>
-                  </CCol>
-                ))}
-                <CCol md={6}>
-                  <div className="contract-field">
-                    <CFormLabel>
-                      <CIcon icon={cilMoney} />
-                      Medio de pago
-                    </CFormLabel>
-                    <CFormInput
-                      value={form.medio_pago}
-                      onChange={(event) => setField('medio_pago', event.target.value)}
-                    />
-                  </div>
-                </CCol>
-                <CCol md={6}>
-                  <div className="contract-field">
-                    <CFormLabel>
-                      <CIcon icon={cilMoney} />
-                      Multa
-                    </CFormLabel>
-                    <CFormInput
-                      type="number"
-                      value={form.multa}
-                      onChange={(event) => setField('multa', event.target.value)}
-                    />
-                  </div>
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Frecuencia de facturacion"
-                    icon={cilCalendar}
-                    value={form.id_frecuencia}
-                    options={lookups.frecuencias || []}
-                    onChange={(value) => setField('id_frecuencia', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar frecuencia..."
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Tipo de tarifa"
-                    icon={cilMoney}
-                    value={form.id_tipo_tarifa}
-                    options={lookups.tipo_tarifas || []}
-                    onChange={(value) => setField('id_tipo_tarifa', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar tipo de tarifa..."
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <CFormSwitch
-                    className="boolean-switch-field"
-                    label="Reajustable"
-                    checked={!!form.reajustable}
-                    onChange={(event) => setField('reajustable', event.target.checked)}
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <CFormSwitch
-                    className="boolean-switch-field"
-                    label="Requiere orden de compra"
-                    checked={!!form.requiere_orden_compra}
-                    onChange={(event) => setField('requiere_orden_compra', event.target.checked)}
-                  />
-                </CCol>
+                {fieldLayout.contract.map((field) => contractFieldRenderers[field]?.())}
               </CRow>
             </ContractSection>
 
-            <ContractSection title="Datos Contacto" icon={cilAddressBook}>
+            <ContractSection title="Datos Contacto" icon={cilAddressBook} className="contract-company-section-contact">
               <CRow className="g-3">
-                <CCol md={12}>
-                  <SearchableLookupField
-                    label="Contacto"
-                    icon={cilAddressBook}
-                    value={form.id_contacto}
-                    options={lookups.contactos || []}
-                    onChange={(value) => setField('id_contacto', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar contacto..."
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Tipo contacto"
-                    icon={cilAddressBook}
-                    value={form.id_tipo_contacto}
-                    options={lookups.tipo_contactos || []}
-                    onChange={(value) => setField('id_tipo_contacto', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar tipo de contacto..."
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <SearchableLookupField
-                    label="Estado contacto"
-                    icon={cilCheckCircle}
-                    value={form.id_estado_contacto}
-                    options={lookups.estado_contactos || []}
-                    onChange={(value) => setField('id_estado_contacto', value)}
-                    required
-                    disabled={saving}
-                    placeholder="Escribe para buscar estado de contacto..."
-                  />
-                </CCol>
+                {fieldLayout.contact.map((field) => contactFieldRenderers[field]?.())}
               </CRow>
             </ContractSection>
           </div>
@@ -1247,34 +2563,16 @@ const ContratoEmpresa = () => {
           {renderRelatedSection('casos')}
           {renderRelatedSection('documentos')}
 
-          <div className="contract-company-actions">
-            <CButton color="secondary" variant="outline" onClick={resetForm} disabled={saving}>
-              <CIcon icon={cilX} className="me-1" />
-              Cancelar
-            </CButton>
-            {current?.id && canDelete && (
-              <CButton color="danger" variant="outline" onClick={deactivate} disabled={saving}>
-                <CIcon icon={cilTrash} className="me-1" />
-                Desactivar
-              </CButton>
-            )}
-            {(current?.id ? canWrite : canCreate) && (
-              <CButton color="primary" type="submit" disabled={saving}>
-                <CIcon icon={cilSave} className="me-1" />
-                {saving ? 'Guardando...' : 'Guardar contrato'}
-              </CButton>
-            )}
-          </div>
         </CForm>
 
         <CModal
           visible={showLineaModal}
-          onClose={() => !lineaSaving && setShowLineaModal(false)}
+          onClose={closeLineaModal}
           alignment="center"
           size="lg"
         >
           <CModalHeader closeButton={!lineaSaving}>
-            <CModalTitle>Crear linea</CModalTitle>
+            <CModalTitle>{lineaEditingId ? 'Editar linea' : 'Crear linea'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <div className="commercial-form-layout contract-company-create-line">
@@ -1284,29 +2582,7 @@ const ContratoEmpresa = () => {
                   <span>Contrato y servicio</span>
                 </div>
                 <CRow className="g-3">
-                  <CCol md={6}>
-                    <div className="commercial-form-field">
-                      <CFormLabel className="commercial-field-label">
-                        <CIcon icon={cilDescription} />
-                        <span>
-                          Contrato <span className="text-danger">*</span>
-                        </span>
-                      </CFormLabel>
-                      <CFormSelect
-                        value={lineaForm.id_contrato}
-                        onChange={(event) => setLineaField('id_contrato', event.target.value)}
-                        disabled={lineaSaving}
-                      >
-                        <option value="">Seleccione...</option>
-                        {(lookups.contratos || []).map((item) => (
-                          <option key={item.id} value={String(item.id)}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </CFormSelect>
-                    </div>
-                  </CCol>
-                  <CCol md={6}>
+                  <CCol md={12}>
                     <div className="commercial-form-field">
                       <CFormLabel className="commercial-field-label">
                         <CIcon icon={cilDescription} />
@@ -1437,10 +2713,26 @@ const ContratoEmpresa = () => {
                   <span>Tarifas</span>
                 </div>
                 <CRow className="g-3">
+                  <CCol md={4}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilMoney} />
+                        <span>Divisa</span>
+                      </CFormLabel>
+                      <CFormSelect
+                        value={lineaForm.divisa || 'Peso'}
+                        onChange={(event) => setLineaField('divisa', event.target.value)}
+                        disabled={lineaSaving}
+                      >
+                        <option value="Peso">Peso</option>
+                        <option value="UF">UF</option>
+                      </CFormSelect>
+                    </div>
+                  </CCol>
                   {[
-                    ['tarifa_fija', 'Tarifa fija', 'number'],
+                    ['tarifa_fija', 'Tarifa fija'],
                     ['moneda_fijo', 'Moneda fijo', 'text'],
-                    ['tarifa_variable', 'Tarifa variable', 'number'],
+                    ['tarifa_variable', 'Tarifa variable'],
                     ['moneda_variable', 'Moneda variable', 'text'],
                     ['unidad_variable', 'Unidad variable', 'text'],
                   ].map(([field, label, type]) => (
@@ -1451,10 +2743,33 @@ const ContratoEmpresa = () => {
                           <span>{label}</span>
                         </CFormLabel>
                         <CFormInput
-                          type={type}
+                          type={type || 'text'}
+                          inputMode={
+                            ['tarifa_fija', 'tarifa_variable'].includes(field) &&
+                            lineaForm.divisa === 'UF'
+                              ? 'decimal'
+                              : ['tarifa_fija', 'tarifa_variable'].includes(field)
+                                ? 'numeric'
+                                : undefined
+                          }
                           value={lineaForm[field]}
+                          onBlur={(event) => {
+                            if (['tarifa_fija', 'tarifa_variable'].includes(field)) {
+                              setLineaField(
+                                field,
+                                formatAmountForInput(event.target.value, lineaForm.divisa || 'Peso'),
+                              )
+                            }
+                          }}
                           onChange={(event) => setLineaField(field, event.target.value)}
                           disabled={lineaSaving}
+                          placeholder={
+                            ['tarifa_fija', 'tarifa_variable'].includes(field)
+                              ? lineaForm.divisa === 'UF'
+                                ? '0,0000'
+                                : '$0'
+                              : ''
+                          }
                         />
                       </div>
                     </CCol>
@@ -1472,30 +2787,574 @@ const ContratoEmpresa = () => {
               </section>
             </div>
           </CModalBody>
-          <CModalFooter>
+        <CModalFooter>
             <CButton
               color="secondary"
               variant="outline"
-              onClick={() => setShowLineaModal(false)}
+              onClick={closeLineaModal}
               disabled={lineaSaving}
             >
               Cancelar
             </CButton>
-            <CButton color="primary" onClick={createLinea} disabled={lineaSaving}>
+            <CButton color="primary" onClick={saveLinea} disabled={lineaSaving}>
               <CIcon icon={cilSave} className="me-1" />
-              {lineaSaving ? 'Guardando...' : 'Guardar linea'}
+              {lineaSaving ? 'Guardando...' : lineaEditingId ? 'Actualizar linea' : 'Guardar linea'}
+            </CButton>
+          </CModalFooter>
+        </CModal>
+
+        <CModal
+          visible={showCasoModal}
+          onClose={closeCasoModal}
+          alignment="center"
+          size="lg"
+        >
+          <CModalHeader closeButton={!casoSaving}>
+            <CModalTitle>{casoEditingId ? 'Editar caso' : 'Crear caso'}</CModalTitle>
+          </CModalHeader>
+          <CModalBody>
+            <div className="commercial-form-layout contract-company-create-case">
+              <section className="commercial-form-section">
+                <div className="commercial-form-section-title">
+                  <CIcon icon={cilAddressBook} />
+                  <span>Relacion</span>
+                </div>
+                <CRow className="g-3">
+                  <CCol md={12}>
+                    <SearchableLookupField
+                      label="Contacto"
+                      icon={cilAddressBook}
+                      value={casoForm.id_contacto}
+                      options={lookups.contactos || []}
+                      onChange={(value) => setCasoField('id_contacto', value)}
+                      required
+                      disabled={casoSaving}
+                      placeholder="Escribe para buscar contacto..."
+                    />
+                  </CCol>
+                  <CCol md={12}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilDescription} />
+                        <span>
+                          Titulo <span className="text-danger">*</span>
+                        </span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={casoForm.titulo}
+                        onChange={(event) => setCasoField('titulo', event.target.value)}
+                        disabled={casoSaving}
+                      />
+                    </div>
+                  </CCol>
+                </CRow>
+              </section>
+
+              <section className="commercial-form-section">
+                <div className="commercial-form-section-title">
+                  <CIcon icon={cilNotes} />
+                  <span>Detalle del caso</span>
+                </div>
+                <CRow className="g-3">
+                  {[
+                    ['texto', 'Texto'],
+                    ['relato', 'Relato'],
+                  ].map(([field, label]) => (
+                    <CCol md={12} key={field}>
+                      <div className="commercial-form-field">
+                        <CFormLabel className="commercial-field-label">
+                          <CIcon icon={cilNotes} />
+                          <span>{label}</span>
+                        </CFormLabel>
+                        <CFormTextarea
+                          rows={3}
+                          value={casoForm[field]}
+                          onChange={(event) => setCasoField(field, event.target.value)}
+                          disabled={casoSaving}
+                        />
+                      </div>
+                    </CCol>
+                  ))}
+                  <CCol md={12}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilFile} />
+                        <span>Archivo</span>
+                      </CFormLabel>
+                      <div className="mac-file-upload">
+                        <input
+                          id="caso-adjuntos-upload"
+                          className="mac-file-upload-input"
+                          type="file"
+                          accept={acceptedDocumentTypes}
+                          onChange={async (event) => {
+                            await uploadContractFile(
+                              event.target.files?.[0],
+                              setCasoField,
+                              'adjuntos',
+                            )
+                            event.target.value = ''
+                          }}
+                          disabled={casoSaving}
+                        />
+                        <div className="mac-file-upload-row">
+                          <label className="mac-file-upload-button" htmlFor="caso-adjuntos-upload">
+                            Seleccionar archivo
+                          </label>
+                          <span className="mac-file-upload-caption">
+                            PDF, Word, Excel, imagen o TXT
+                          </span>
+                        </div>
+                        <div className="mac-file-upload-url">
+                          <CFormLabel className="commercial-field-label">
+                            <CIcon icon={cilDescription} />
+                            <span>URL</span>
+                          </CFormLabel>
+                          <CFormInput
+                            type="url"
+                            value={casoForm.adjuntos}
+                            onChange={(event) => setCasoField('adjuntos', event.target.value)}
+                            placeholder="https://..."
+                            disabled={casoSaving}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CCol>
+                </CRow>
+              </section>
+            </div>
+          </CModalBody>
+          <CModalFooter>
+            <CButton
+              color="secondary"
+              variant="outline"
+              onClick={closeCasoModal}
+              disabled={casoSaving}
+            >
+              Cancelar
+            </CButton>
+            <CButton color="primary" onClick={saveCaso} disabled={casoSaving}>
+              <CIcon icon={cilSave} className="me-1" />
+              {casoSaving ? 'Guardando...' : casoEditingId ? 'Actualizar caso' : 'Guardar caso'}
+            </CButton>
+          </CModalFooter>
+        </CModal>
+
+        <CModal
+          visible={showDocumentoModal}
+          onClose={closeDocumentoModal}
+          alignment="center"
+          size="lg"
+        >
+          <CModalHeader closeButton={!documentoSaving}>
+            <CModalTitle>
+              {documentoEditingId ? 'Editar documento' : 'Crear documento'}
+            </CModalTitle>
+          </CModalHeader>
+          <CModalBody>
+            <div className="commercial-form-layout contract-company-create-document">
+              <section className="commercial-form-section">
+                <div className="commercial-form-section-title">
+                  <CIcon icon={cilFile} />
+                  <span>Documento</span>
+                </div>
+                <CRow className="g-3">
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilFile} />
+                        <span>Tipo documento</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={documentoForm.tipo_documento}
+                        onChange={(event) =>
+                          setDocumentoField('tipo_documento', event.target.value)
+                        }
+                        disabled={documentoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilDescription} />
+                        <span>
+                          Nombre <span className="text-danger">*</span>
+                        </span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={documentoForm.nombre}
+                        onChange={(event) => setDocumentoField('nombre', event.target.value)}
+                        disabled={documentoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilDescription} />
+                        <span>Version</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={documentoForm.version}
+                        onChange={(event) => setDocumentoField('version', event.target.value)}
+                        disabled={documentoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilCheckCircle} />
+                        <span>Estado</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={documentoForm.estado}
+                        onChange={(event) => setDocumentoField('estado', event.target.value)}
+                        disabled={documentoSaving}
+                      />
+                    </div>
+                  </CCol>
+                </CRow>
+              </section>
+
+              <section className="commercial-form-section">
+                <div className="commercial-form-section-title">
+                  <CIcon icon={cilBriefcase} />
+                  <span>Gestion</span>
+                </div>
+                <CRow className="g-3">
+                  <CCol md={12}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilAddressBook} />
+                        <span>Responsable</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={documentoForm.responsable}
+                        onChange={(event) => setDocumentoField('responsable', event.target.value)}
+                        disabled={documentoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={12}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilNotes} />
+                        <span>Descripcion</span>
+                      </CFormLabel>
+                      <CFormTextarea
+                        rows={3}
+                        value={documentoForm.descripcion}
+                        onChange={(event) => setDocumentoField('descripcion', event.target.value)}
+                        disabled={documentoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={12}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilFile} />
+                        <span>Archivo</span>
+                      </CFormLabel>
+                      <div className="mac-file-upload">
+                        <input
+                          id="documento-archivo-upload"
+                          className="mac-file-upload-input"
+                          type="file"
+                          accept={acceptedDocumentTypes}
+                          onChange={async (event) => {
+                            await uploadContractFile(
+                              event.target.files?.[0],
+                              setDocumentoField,
+                              'archivo',
+                            )
+                            event.target.value = ''
+                          }}
+                          disabled={documentoSaving}
+                        />
+                        <div className="mac-file-upload-row">
+                          <label
+                            className="mac-file-upload-button"
+                            htmlFor="documento-archivo-upload"
+                          >
+                            Seleccionar archivo
+                          </label>
+                          <span className="mac-file-upload-caption">
+                            PDF, Word, Excel, imagen o TXT
+                          </span>
+                        </div>
+                        <div className="mac-file-upload-url">
+                          <CFormLabel className="commercial-field-label">
+                            <CIcon icon={cilDescription} />
+                            <span>URL</span>
+                          </CFormLabel>
+                          <CFormInput
+                            type="url"
+                            value={documentoForm.archivo}
+                            onChange={(event) => setDocumentoField('archivo', event.target.value)}
+                            placeholder="https://..."
+                            disabled={documentoSaving}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CCol>
+                </CRow>
+              </section>
+            </div>
+          </CModalBody>
+          <CModalFooter>
+            <CButton
+              color="secondary"
+              variant="outline"
+              onClick={closeDocumentoModal}
+              disabled={documentoSaving}
+            >
+              Cancelar
+            </CButton>
+            <CButton color="primary" onClick={saveDocumento} disabled={documentoSaving}>
+              <CIcon icon={cilSave} className="me-1" />
+              {documentoSaving
+                ? 'Guardando...'
+                : documentoEditingId
+                  ? 'Actualizar documento'
+                  : 'Guardar documento'}
+            </CButton>
+          </CModalFooter>
+        </CModal>
+
+        <CModal
+          visible={showContactoModal}
+          onClose={() => {
+            if (contactoSaving) return
+            setShowContactoModal(false)
+            setContactoEditingId(null)
+          }}
+          alignment="center"
+          size="xl"
+        >
+          <CModalHeader closeButton={!contactoSaving}>
+            <CModalTitle>{contactoEditingId ? 'Editar contacto' : 'Crear contacto'}</CModalTitle>
+          </CModalHeader>
+          <CModalBody>
+            <div className="commercial-form-layout contract-company-create-contact">
+              <section className="commercial-form-section">
+                <div className="commercial-form-section-title">
+                  <CIcon icon={cilAddressBook} />
+                  <span>Tipo y estado</span>
+                </div>
+                <CRow className="g-3">
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilAddressBook} />
+                        <span>
+                          Tipo contacto <span className="text-danger">*</span>
+                        </span>
+                      </CFormLabel>
+                      <CFormSelect
+                        value={contactoForm.id_tipo_contacto}
+                        onChange={(event) =>
+                          setContactoField('id_tipo_contacto', event.target.value)
+                        }
+                        disabled={contactoSaving}
+                      >
+                        <option value="">Seleccione...</option>
+                        {(lookups.tipo_contactos || []).map((item) => (
+                          <option key={item.id} value={String(item.id)}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilCheckCircle} />
+                        <span>
+                          Estado contacto <span className="text-danger">*</span>
+                        </span>
+                      </CFormLabel>
+                      <CFormSelect
+                        value={contactoForm.id_estado_contacto}
+                        onChange={(event) =>
+                          setContactoField('id_estado_contacto', event.target.value)
+                        }
+                        disabled={contactoSaving}
+                      >
+                        <option value="">Seleccione...</option>
+                        {(lookups.estado_contactos || []).map((item) => (
+                          <option key={item.id} value={String(item.id)}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                    </div>
+                  </CCol>
+                </CRow>
+              </section>
+
+              <section className="commercial-form-section">
+                <div className="commercial-form-section-title">
+                  <CIcon icon={cilContact} />
+                  <span>Datos del contacto</span>
+                </div>
+                <CRow className="g-3">
+                  <CCol md={8}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilAddressBook} />
+                        <span>
+                          Nombre <span className="text-danger">*</span>
+                        </span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={contactoForm.nombre}
+                        onChange={(event) => setContactoField('nombre', event.target.value)}
+                        disabled={contactoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={4}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilBadge} />
+                        <span>RUT contacto</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={contactoForm.rut}
+                        onChange={(event) => setContactoField('rut', event.target.value)}
+                        placeholder="12.345.678-9"
+                        disabled={contactoSaving}
+                        invalid={contactoRutStatus === 'invalid'}
+                        valid={contactoRutStatus === 'valid'}
+                      />
+                      <small
+                        className={`contract-rut-hint ${
+                          contactoRutStatus === 'valid'
+                            ? 'is-valid'
+                            : contactoRutStatus === 'invalid'
+                              ? 'is-invalid'
+                              : ''
+                        }`}
+                      >
+                        {contactoRutStatus === 'valid'
+                          ? 'RUT valido'
+                          : contactoRutStatus === 'invalid'
+                            ? 'RUT invalido'
+                            : 'Ingresa el RUT del contacto'}
+                      </small>
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilBriefcase} />
+                        <span>Cargo</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={contactoForm.cargo}
+                        onChange={(event) => setContactoField('cargo', event.target.value)}
+                        disabled={contactoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilEnvelopeClosed} />
+                        <span>Email</span>
+                      </CFormLabel>
+                      <CFormInput
+                        type="email"
+                        value={contactoForm.email}
+                        onChange={(event) => setContactoField('email', event.target.value)}
+                        placeholder="contacto@empresa.cl"
+                        disabled={contactoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilPhone} />
+                        <span>Telefono</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={contactoForm.telefono}
+                        onChange={(event) => setContactoField('telefono', event.target.value)}
+                        placeholder="+56 9 1234 5678"
+                        disabled={contactoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={6}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilList} />
+                        <span>Canal preferido</span>
+                      </CFormLabel>
+                      <CFormInput
+                        value={contactoForm.canal_preferido}
+                        onChange={(event) =>
+                          setContactoField('canal_preferido', event.target.value)
+                        }
+                        disabled={contactoSaving}
+                      />
+                    </div>
+                  </CCol>
+                  <CCol md={12}>
+                    <CFormSwitch
+                      className="boolean-switch-field boolean-switch-field-lg"
+                      label="Autoriza comunicacion"
+                      checked={!!contactoForm.autoriza_comunicaciones}
+                      onChange={(event) =>
+                        setContactoField('autoriza_comunicaciones', event.target.checked)
+                      }
+                      disabled={contactoSaving}
+                    />
+                  </CCol>
+                </CRow>
+              </section>
+            </div>
+          </CModalBody>
+          <CModalFooter>
+            <CButton
+              color="secondary"
+              variant="outline"
+              onClick={() => {
+                setShowContactoModal(false)
+                setContactoEditingId(null)
+              }}
+              disabled={contactoSaving}
+            >
+              Cancelar
+            </CButton>
+            <CButton
+              color="primary"
+              onClick={saveContacto}
+              disabled={contactoSaving || contactoRutStatus === 'invalid'}
+            >
+              {contactoSaving ? 'Guardando...' : 'Guardar contacto'}
             </CButton>
           </CModalFooter>
         </CModal>
 
         <CModal
           visible={showEmpresaModal}
-          onClose={() => !empresaSaving && setShowEmpresaModal(false)}
+          onClose={() => {
+            if (empresaSaving) return
+            setShowEmpresaModal(false)
+            setEmpresaEditingId(null)
+          }}
           alignment="center"
           size="lg"
         >
           <CModalHeader closeButton={!empresaSaving}>
-            <CModalTitle>Crear empresa</CModalTitle>
+            <CModalTitle>{empresaEditingId ? 'Editar empresa' : 'Crear empresa'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
             <div className="commercial-form-layout contract-company-create-company">
@@ -1517,7 +3376,7 @@ const ContratoEmpresa = () => {
                         value={empresaForm.rut}
                         onChange={(event) => setEmpresaField('rut', event.target.value)}
                         placeholder="12.345.678-5"
-                        disabled={empresaSaving}
+                        disabled={empresaSaving || !!empresaEditingId}
                       />
                       <small
                         className={`contract-rut-hint ${
@@ -1574,7 +3433,7 @@ const ContratoEmpresa = () => {
                       />
                     </div>
                   </CCol>
-                  <CCol md={6}>
+                  <CCol md={12}>
                     <div className="commercial-form-field">
                       <CFormLabel className="commercial-field-label">
                         <CIcon icon={cilDescription} />
@@ -1598,7 +3457,7 @@ const ContratoEmpresa = () => {
                   <span>Datos comerciales</span>
                 </div>
                 <CRow className="g-3">
-                  <CCol md={6}>
+                  <CCol md={12}>
                     <div className="commercial-form-field">
                       <CFormLabel className="commercial-field-label">
                         <CIcon icon={cilBriefcase} />
@@ -1646,7 +3505,7 @@ const ContratoEmpresa = () => {
                       />
                     </div>
                   </CCol>
-                  <CCol md={6}>
+                  <CCol md={6} xl={4}>
                     <div className="commercial-form-field">
                       <CFormLabel className="commercial-field-label">
                         <CIcon icon={cilList} />
@@ -1666,7 +3525,29 @@ const ContratoEmpresa = () => {
                       </CFormSelect>
                     </div>
                   </CCol>
-                  <CCol md={6}>
+                  <CCol md={6} xl={4}>
+                    <div className="commercial-form-field">
+                      <CFormLabel className="commercial-field-label">
+                        <CIcon icon={cilList} />
+                        <span>Ciudad</span>
+                      </CFormLabel>
+                      <CFormSelect
+                        value={empresaForm.ciudad}
+                        onChange={(event) => setEmpresaField('ciudad', event.target.value)}
+                        disabled={empresaSaving || !empresaForm.region}
+                      >
+                        <option value="">
+                          {empresaForm.region ? 'Seleccione...' : 'Seleccione region primero'}
+                        </option>
+                        {ciudadesEmpresa.map((ciudad) => (
+                          <option key={ciudad} value={ciudad}>
+                            {ciudad}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                    </div>
+                  </CCol>
+                  <CCol md={6} xl={4}>
                     <div className="commercial-form-field">
                       <CFormLabel className="commercial-field-label">
                         <CIcon icon={cilList} />
@@ -1675,9 +3556,11 @@ const ContratoEmpresa = () => {
                       <CFormSelect
                         value={empresaForm.comuna}
                         onChange={(event) => setEmpresaField('comuna', event.target.value)}
-                        disabled={empresaSaving || !empresaForm.region}
+                        disabled={empresaSaving || !empresaForm.ciudad}
                       >
-                        <option value="">Seleccione...</option>
+                        <option value="">
+                          {empresaForm.ciudad ? 'Seleccione...' : 'Seleccione ciudad primero'}
+                        </option>
                         {comunasEmpresa.map((comuna) => (
                           <option key={comuna} value={comuna}>
                             {comuna}
@@ -1686,7 +3569,7 @@ const ContratoEmpresa = () => {
                       </CFormSelect>
                     </div>
                   </CCol>
-                  <CCol md={12}>
+                  <CCol md={6}>
                     <div className="commercial-form-field">
                       <CFormLabel className="commercial-field-label">
                         <CIcon icon={cilDescription} />
@@ -1708,16 +3591,26 @@ const ContratoEmpresa = () => {
             <CButton
               color="secondary"
               variant="outline"
-              onClick={() => setShowEmpresaModal(false)}
+              onClick={() => {
+                setShowEmpresaModal(false)
+                setEmpresaEditingId(null)
+              }}
               disabled={empresaSaving}
             >
               Cancelar
             </CButton>
-            <CButton color="primary" onClick={createEmpresa} disabled={empresaSaving}>
+            <CButton color="primary" onClick={saveEmpresa} disabled={empresaSaving}>
               {empresaSaving ? 'Guardando...' : 'Guardar empresa'}
             </CButton>
           </CModalFooter>
         </CModal>
+        <ExportModal
+          visible={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          onConfirm={confirmExport}
+          submitting={exporting}
+          format={exportFormat}
+        />
       </div>
     </div>
   )

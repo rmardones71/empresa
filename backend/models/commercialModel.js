@@ -8,7 +8,10 @@ const resources = {
     searchFields: ['categoria'],
     required: ['categoria'],
     fields: [{ name: 'categoria', type: 'string' }],
-    dependencies: [{ table: 'dbo.empresa', field: 'id_categoria', label: 'empresas' }],
+    dependencies: [
+      { table: 'dbo.empresa', field: 'id_categoria', label: 'empresas' },
+      { table: 'dbo.contratos_empresa', field: 'id_categoria', label: 'contratos empresa' },
+    ],
   },
   tipo_contactos: {
     table: 'dbo.tipo_contacto',
@@ -19,7 +22,10 @@ const resources = {
     searchFields: ['tipo'],
     required: ['tipo'],
     fields: [{ name: 'tipo', type: 'string' }],
-    dependencies: [{ table: 'dbo.contacto', field: 'id_tipo_contacto', label: 'contactos' }],
+    dependencies: [
+      { table: 'dbo.contacto', field: 'id_tipo_contacto', label: 'contactos' },
+      { table: 'dbo.contratos_empresa', field: 'id_tipo_contacto', label: 'contratos empresa' },
+    ],
   },
   estado_contactos: {
     table: 'dbo.estado_contacto',
@@ -30,7 +36,10 @@ const resources = {
     searchFields: ['estado_contacto'],
     required: ['estado_contacto'],
     fields: [{ name: 'estado_contacto', type: 'string' }],
-    dependencies: [{ table: 'dbo.contacto', field: 'id_estado_contacto', label: 'contactos' }],
+    dependencies: [
+      { table: 'dbo.contacto', field: 'id_estado_contacto', label: 'contactos' },
+      { table: 'dbo.contratos_empresa', field: 'id_estado_contacto', label: 'contratos empresa' },
+    ],
   },
   estado_vitales: {
     table: 'dbo.estado_vital',
@@ -41,7 +50,7 @@ const resources = {
     searchFields: ['estado_vital'],
     required: ['estado_vital'],
     fields: [{ name: 'estado_vital', type: 'string' }],
-    dependencies: [{ table: 'dbo.contrato', field: 'id_estado_vital', label: 'contratos' }],
+    dependencies: [{ table: 'dbo.contratos_empresa', field: 'id_estado_vital', label: 'contratos empresa' }],
   },
   estados_ctr: {
     table: 'dbo.estado_ctr',
@@ -52,7 +61,7 @@ const resources = {
     searchFields: ['estado_ctr'],
     required: ['estado_ctr'],
     fields: [{ name: 'estado_ctr', type: 'string' }],
-    dependencies: [{ table: 'dbo.contrato', field: 'id_estado_ctr', label: 'contratos' }],
+    dependencies: [{ table: 'dbo.contratos_empresa', field: 'id_estado_ctr', label: 'contratos empresa' }],
   },
   tipo_servicios: {
     table: 'dbo.tipo_servicio',
@@ -63,7 +72,10 @@ const resources = {
     searchFields: ['tipo_servicio'],
     required: ['tipo_servicio'],
     fields: [{ name: 'tipo_servicio', type: 'string' }],
-    dependencies: [{ table: 'dbo.linea', field: 'id_tipo_servicio', label: 'lineas' }],
+    dependencies: [
+      { table: 'dbo.linea', field: 'id_tipo_servicio', label: 'lineas' },
+      { table: 'dbo.contratos_empresa', field: 'id_tipo_servicio', label: 'contratos empresa' },
+    ],
   },
   tipo_tarifas: {
     table: 'dbo.tipo_tarifa',
@@ -74,7 +86,10 @@ const resources = {
     searchFields: ['tipo_tarifa'],
     required: ['tipo_tarifa'],
     fields: [{ name: 'tipo_tarifa', type: 'string' }],
-    dependencies: [{ table: 'dbo.linea', field: 'id_tipo_tarifa', label: 'lineas' }],
+    dependencies: [
+      { table: 'dbo.linea', field: 'id_tipo_tarifa', label: 'lineas' },
+      { table: 'dbo.contratos_empresa', field: 'id_tipo_tarifa', label: 'contratos empresa' },
+    ],
   },
   frecuencias: {
     table: 'dbo.frecuencia_facturacion',
@@ -85,7 +100,10 @@ const resources = {
     searchFields: ['frecuencia'],
     required: ['frecuencia'],
     fields: [{ name: 'frecuencia', type: 'string' }],
-    dependencies: [{ table: 'dbo.linea', field: 'id_frecuencia', label: 'lineas' }],
+    dependencies: [
+      { table: 'dbo.linea', field: 'id_frecuencia', label: 'lineas' },
+      { table: 'dbo.contratos_empresa', field: 'id_frecuencia', label: 'contratos empresa' },
+    ],
   },
   empresas: {
     table: 'dbo.empresa',
@@ -107,6 +125,7 @@ const resources = {
       { name: 'giro', type: 'string' },
       { name: 'rubro', type: 'string' },
       { name: 'direccion', type: 'string' },
+      { name: 'ciudad', type: 'string' },
       { name: 'comuna', type: 'string' },
       { name: 'region', type: 'string' },
       { name: 'sitio_web', type: 'string' },
@@ -114,8 +133,7 @@ const resources = {
     ],
     joins: [{ table: 'dbo.categoria', alias: 'cat', local: 'id_categoria', foreign: 'id_categoria', field: 'categoria', as: 'categoria' }],
     dependencies: [
-      { table: 'dbo.contacto', field: 'rut_empresa', label: 'contactos' },
-      { table: 'dbo.contrato', field: 'rut_empresa', label: 'contratos' },
+      { table: 'dbo.contratos_empresa', field: 'rut_empresa', label: 'contratos empresa' },
     ],
   },
   contactos: {
@@ -125,9 +143,8 @@ const resources = {
     label: 'Contactos',
     displayField: 'nombre',
     searchFields: ['rut', 'nombre', 'cargo', 'area', 'email', 'telefono', 'rol'],
-    required: ['rut_empresa', 'id_tipo_contacto', 'id_estado_contacto', 'nombre'],
+    required: ['id_tipo_contacto', 'id_estado_contacto', 'nombre'],
     fields: [
-      { name: 'rut_empresa', type: 'string' },
       { name: 'id_tipo_contacto', type: 'int' },
       { name: 'id_estado_contacto', type: 'int' },
       { name: 'rut', type: 'string', validation: 'chileRut', validationLabel: 'RUT contacto' },
@@ -141,21 +158,25 @@ const resources = {
       { name: 'estado', type: 'string' },
     ],
     joins: [
-      { table: 'dbo.empresa', alias: 'emp', local: 'rut_empresa', foreign: 'rut', field: 'razon_social', as: 'empresa' },
       { table: 'dbo.tipo_contacto', alias: 'tc', local: 'id_tipo_contacto', foreign: 'id_tipo_contacto', field: 'tipo', as: 'tipo_contacto' },
       { table: 'dbo.estado_contacto', alias: 'ec', local: 'id_estado_contacto', foreign: 'id_estado_contacto', field: 'estado_contacto', as: 'estado_contacto' },
     ],
-    dependencies: [{ table: 'dbo.caso', field: 'id_contacto', label: 'casos' }],
+    dependencies: [
+      { table: 'dbo.caso', field: 'id_contacto', label: 'casos' },
+      { table: 'dbo.contratos_empresa', field: 'id_contacto', label: 'contratos empresa' },
+    ],
   },
-  contratos: {
-    table: 'dbo.contrato',
-    idField: 'id_contrato',
+  contratos_empresa_lookup: {
+    table: 'dbo.contratos_empresa',
+    audit: false,
+    idField: 'id',
     idType: 'int',
-    label: 'Contratos',
+    label: 'Contratos Empresa',
     displayField: 'titulo',
-    searchFields: ['titulo', 'medio_pago'],
+    searchFields: ['codigo_contrato_empresa', 'titulo', 'medio_pago'],
     required: ['rut_empresa', 'id_estado_vital', 'titulo'],
     fields: [
+      { name: 'codigo_contrato_empresa', type: 'string', readOnly: true },
       { name: 'rut_empresa', type: 'string' },
       { name: 'id_estado_vital', type: 'int' },
       { name: 'id_estado_ctr', type: 'int' },
@@ -167,7 +188,7 @@ const resources = {
       { name: 'medio_pago', type: 'string' },
       { name: 'reajustable', type: 'boolean' },
       { name: 'multa', type: 'number' },
-      { name: 'requiere_oc', type: 'boolean' },
+      { name: 'requiere_orden_compra', type: 'boolean' },
     ],
     joins: [
       { table: 'dbo.empresa', alias: 'emp', local: 'rut_empresa', foreign: 'rut', field: 'razon_social', as: 'empresa' },
@@ -175,9 +196,72 @@ const resources = {
       { table: 'dbo.estado_ctr', alias: 'ectr', local: 'id_estado_ctr', foreign: 'id_estado_ctr', field: 'estado_ctr', as: 'estado_ctr' },
     ],
     dependencies: [
-      { table: 'dbo.linea', field: 'id_contrato', label: 'lineas' },
-      { table: 'dbo.documentos', field: 'id_contrato', label: 'documentos' },
-      { table: 'dbo.caso', field: 'id_contrato', label: 'casos' },
+      { table: 'dbo.linea', field: 'contrato_empresa_id', label: 'lineas' },
+      { table: 'dbo.documentos', field: 'contrato_empresa_id', label: 'documentos' },
+      { table: 'dbo.caso', field: 'contrato_empresa_id', label: 'casos' },
+    ],
+  },
+  contratos_empresa: {
+    table: 'dbo.contratos_empresa',
+    audit: false,
+    idField: 'id',
+    idType: 'int',
+    label: 'Contratos Empresa',
+    displayField: 'titulo',
+    searchFields: ['codigo_contrato_empresa', 'titulo', 'medio_pago'],
+    required: [
+      'rut_empresa',
+      'id_categoria',
+      'id_tipo_servicio',
+      'id_estado_vital',
+      'id_estado_ctr',
+      'titulo',
+      'id_frecuencia',
+      'id_tipo_tarifa',
+      'id_contacto',
+      'id_tipo_contacto',
+      'id_estado_contacto',
+    ],
+    fields: [
+      { name: 'codigo_contrato_empresa', type: 'string', readOnly: true },
+      { name: 'rut_empresa', type: 'string' },
+      { name: 'id_categoria', type: 'int' },
+      { name: 'id_tipo_servicio', type: 'int' },
+      { name: 'id_estado_vital', type: 'int' },
+      { name: 'id_estado_ctr', type: 'int' },
+      { name: 'titulo', type: 'string' },
+      { name: 'fecha_firma', type: 'date' },
+      { name: 'fecha_inicio', type: 'date' },
+      { name: 'fecha_termino', type: 'date' },
+      { name: 'fecha_facturacion', type: 'date' },
+      { name: 'medio_pago', type: 'string' },
+      { name: 'reajustable', type: 'boolean' },
+      { name: 'multa', type: 'number' },
+      { name: 'requiere_orden_compra', type: 'boolean' },
+      { name: 'id_frecuencia', type: 'int' },
+      { name: 'id_tipo_tarifa', type: 'int' },
+      { name: 'id_contacto', type: 'int' },
+      { name: 'id_tipo_contacto', type: 'int' },
+      { name: 'id_estado_contacto', type: 'int' },
+      { name: 'created_at', type: 'dateTime', readOnly: true },
+      { name: 'updated_at', type: 'dateTime', readOnly: true },
+    ],
+    joins: [
+      { table: 'dbo.empresa', alias: 'emp', local: 'rut_empresa', foreign: 'rut', field: 'razon_social', as: 'empresa' },
+      { table: 'dbo.categoria', alias: 'cat', local: 'id_categoria', foreign: 'id_categoria', field: 'categoria', as: 'categoria' },
+      { table: 'dbo.tipo_servicio', alias: 'ts', local: 'id_tipo_servicio', foreign: 'id_tipo_servicio', field: 'tipo_servicio', as: 'tipo_servicio' },
+      { table: 'dbo.estado_vital', alias: 'ev', local: 'id_estado_vital', foreign: 'id_estado_vital', field: 'estado_vital', as: 'estado_vital' },
+      { table: 'dbo.estado_ctr', alias: 'ectr', local: 'id_estado_ctr', foreign: 'id_estado_ctr', field: 'estado_ctr', as: 'estado_ctr' },
+      { table: 'dbo.frecuencia_facturacion', alias: 'ff', local: 'id_frecuencia', foreign: 'id_frecuencia', field: 'frecuencia', as: 'frecuencia' },
+      { table: 'dbo.tipo_tarifa', alias: 'tt', local: 'id_tipo_tarifa', foreign: 'id_tipo_tarifa', field: 'tipo_tarifa', as: 'tipo_tarifa' },
+      { table: 'dbo.contacto', alias: 'co', local: 'id_contacto', foreign: 'id_contacto', field: 'nombre', as: 'contacto' },
+      { table: 'dbo.tipo_contacto', alias: 'tc', local: 'id_tipo_contacto', foreign: 'id_tipo_contacto', field: 'tipo', as: 'tipo_contacto' },
+      { table: 'dbo.estado_contacto', alias: 'ec', local: 'id_estado_contacto', foreign: 'id_estado_contacto', field: 'estado_contacto', as: 'estado_contacto' },
+    ],
+    dependencies: [
+      { table: 'dbo.linea', field: 'contrato_empresa_id', label: 'lineas' },
+      { table: 'dbo.documentos', field: 'contrato_empresa_id', label: 'documentos' },
+      { table: 'dbo.caso', field: 'contrato_empresa_id', label: 'casos' },
     ],
   },
   lineas: {
@@ -186,16 +270,17 @@ const resources = {
     idType: 'int',
     label: 'Lineas de contrato',
     displayField: 'titulo',
-    searchFields: ['titulo', 'moneda_fijo', 'moneda_variable', 'unidad_variable'],
-    required: ['id_contrato', 'id_tipo_servicio', 'id_tipo_tarifa', 'id_frecuencia', 'titulo'],
+    searchFields: ['titulo', 'divisa', 'moneda_fijo', 'moneda_variable', 'unidad_variable'],
+    required: ['contrato_empresa_id', 'id_tipo_servicio', 'id_tipo_tarifa', 'id_frecuencia', 'titulo'],
     fields: [
-      { name: 'id_contrato', type: 'int' },
+      { name: 'contrato_empresa_id', type: 'int' },
       { name: 'id_tipo_servicio', type: 'int' },
       { name: 'id_tipo_tarifa', type: 'int' },
       { name: 'id_frecuencia', type: 'int' },
       { name: 'titulo', type: 'string' },
       { name: 'fecha_inicio', type: 'date' },
       { name: 'fecha_inicio_ciclo_facturacion', type: 'date' },
+      { name: 'divisa', type: 'string' },
       { name: 'tarifa_fija', type: 'number' },
       { name: 'tarifa_variable', type: 'number' },
       { name: 'moneda_fijo', type: 'string' },
@@ -204,10 +289,13 @@ const resources = {
       { name: 'iva', type: 'boolean' },
     ],
     joins: [
-      { table: 'dbo.contrato', alias: 'con', local: 'id_contrato', foreign: 'id_contrato', field: 'titulo', as: 'contrato' },
+      { table: 'dbo.contratos_empresa', alias: 'con', local: 'contrato_empresa_id', foreign: 'id', field: 'titulo', as: 'contrato' },
       { table: 'dbo.tipo_servicio', alias: 'ts', local: 'id_tipo_servicio', foreign: 'id_tipo_servicio', field: 'tipo_servicio', as: 'tipo_servicio' },
       { table: 'dbo.tipo_tarifa', alias: 'tt', local: 'id_tipo_tarifa', foreign: 'id_tipo_tarifa', field: 'tipo_tarifa', as: 'tipo_tarifa' },
       { table: 'dbo.frecuencia_facturacion', alias: 'ff', local: 'id_frecuencia', foreign: 'id_frecuencia', field: 'frecuencia', as: 'frecuencia' },
+    ],
+    dependencies: [
+      { table: 'dbo.contrato_empresa_lineas', field: 'linea_id', label: 'contratos empresa' },
     ],
   },
   casos: {
@@ -217,10 +305,10 @@ const resources = {
     label: 'Casos',
     displayField: 'titulo',
     searchFields: ['titulo', 'texto', 'relato'],
-    required: ['id_contacto', 'id_contrato', 'titulo'],
+    required: ['id_contacto', 'contrato_empresa_id', 'titulo'],
     fields: [
       { name: 'id_contacto', type: 'int' },
-      { name: 'id_contrato', type: 'int' },
+      { name: 'contrato_empresa_id', type: 'int' },
       { name: 'titulo', type: 'string' },
       { name: 'texto', type: 'string' },
       { name: 'adjuntos', type: 'string' },
@@ -228,7 +316,7 @@ const resources = {
     ],
     joins: [
       { table: 'dbo.contacto', alias: 'co', local: 'id_contacto', foreign: 'id_contacto', field: 'nombre', as: 'contacto' },
-      { table: 'dbo.contrato', alias: 'con', local: 'id_contrato', foreign: 'id_contrato', field: 'titulo', as: 'contrato' },
+      { table: 'dbo.contratos_empresa', alias: 'con', local: 'contrato_empresa_id', foreign: 'id', field: 'titulo', as: 'contrato' },
     ],
   },
   documentos: {
@@ -238,9 +326,9 @@ const resources = {
     label: 'Documentos',
     displayField: 'nombre',
     searchFields: ['tipo_documento', 'nombre', 'descripcion', 'responsable', 'estado'],
-    required: ['id_contrato', 'nombre'],
+    required: ['contrato_empresa_id', 'nombre'],
     fields: [
-      { name: 'id_contrato', type: 'int' },
+      { name: 'contrato_empresa_id', type: 'int' },
       { name: 'tipo_documento', type: 'string' },
       { name: 'nombre', type: 'string' },
       { name: 'descripcion', type: 'string' },
@@ -250,7 +338,7 @@ const resources = {
       { name: 'estado', type: 'string' },
       { name: 'fecha_carga', type: 'dateTime', createOnly: true },
     ],
-    joins: [{ table: 'dbo.contrato', alias: 'con', local: 'id_contrato', foreign: 'id_contrato', field: 'titulo', as: 'contrato' }],
+    joins: [{ table: 'dbo.contratos_empresa', alias: 'con', local: 'contrato_empresa_id', foreign: 'id', field: 'titulo', as: 'contrato' }],
   },
 }
 
@@ -265,7 +353,7 @@ const lookupResources = [
   'frecuencias',
   'empresas',
   'contactos',
-  'contratos',
+  'contratos_empresa_lookup',
 ]
 
 const auditFields = [
@@ -275,9 +363,9 @@ const auditFields = [
 ]
 
 Object.values(resources).forEach((resource) => {
-  resource.audit = true
-  resource.virtualFields = ['usuario_creacion']
-  resource.fields = [...resource.fields, ...auditFields]
+  resource.audit = resource.audit !== false
+  resource.virtualFields = resource.audit ? ['usuario_creacion'] : []
+  if (resource.audit) resource.fields = [...resource.fields, ...auditFields]
 })
 
 function getResource(name) {

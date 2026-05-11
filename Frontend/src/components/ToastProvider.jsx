@@ -10,32 +10,52 @@ const COLORS = {
   warning: 'warning',
 }
 
+const LABELS = {
+  success: 'Exito',
+  error: 'Error',
+  info: 'Info',
+  warning: 'Atencion',
+}
+
+const DELAYS = {
+  success: 3000,
+  info: 5000,
+  warning: 7000,
+  error: 10000,
+}
+
 export const ToastProvider = ({ children }) => {
   const [toast, setToast] = useState(null)
 
   const push = useCallback((t) => {
     const id = crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())
     setToast(
-      <CToast visible autohide delay={3500} color={t.color} className="text-white" key={id}>
-        <CToastHeader
-          closeButton={false}
-          className="text-white"
-          style={{ background: 'transparent' }}
-        >
-          <strong className="me-auto">{t.title}</strong>
-          <CToastClose className="ms-2 mb-1" white />
+      <CToast
+        visible
+        autohide
+        delay={DELAYS[t.kind] || 2800}
+        className={`app-toast app-toast-${t.kind}`}
+        key={id}
+      >
+        <CToastHeader closeButton={false} className="app-toast-header">
+          <span className="app-toast-mark" aria-hidden="true" />
+          <strong className="me-auto">{t.title || LABELS[t.kind]}</strong>
+          <CToastClose className="ms-2 mb-1 app-toast-close" />
         </CToastHeader>
-        <CToastBody>{t.message}</CToastBody>
+        <CToastBody className="app-toast-body">{t.message}</CToastBody>
       </CToast>,
     )
   }, [])
 
   const api = useMemo(
     () => ({
-      success: (message, title = 'OK') => push({ color: COLORS.success, title, message }),
-      error: (message, title = 'Error') => push({ color: COLORS.error, title, message }),
-      info: (message, title = 'Info') => push({ color: COLORS.info, title, message }),
-      warning: (message, title = 'Atención') => push({ color: COLORS.warning, title, message }),
+      success: (message, title = 'OK') =>
+        push({ color: COLORS.success, kind: 'success', title, message }),
+      error: (message, title = 'Error') =>
+        push({ color: COLORS.error, kind: 'error', title, message }),
+      info: (message, title = 'Info') => push({ color: COLORS.info, kind: 'info', title, message }),
+      warning: (message, title = 'Atencion') =>
+        push({ color: COLORS.warning, kind: 'warning', title, message }),
     }),
     [push],
   )
@@ -43,7 +63,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <CToaster push={toast} placement="top-end" className="p-3" />
+      <CToaster push={toast} placement="middle-center" className="app-toast-center" />
     </ToastContext.Provider>
   )
 }

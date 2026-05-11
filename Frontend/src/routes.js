@@ -167,15 +167,15 @@ const routes = [
     permissionKey: 'commercial.contactos',
   },
   {
-    path: '/commercial/contratos',
-    name: 'Contratos',
-    element: CommercialModule,
-    permissionKey: 'commercial.contratos',
+    path: '/contratos-empresa',
+    name: 'Ingreso Contratos Empresa',
+    element: ContratoEmpresa,
+    permissionKey: 'commercial.contratos_empresa',
   },
   {
-    path: '/commercial/contratos-empresa',
-    name: 'Contrato Empresa',
-    element: ContratoEmpresa,
+    path: '/commercial/contratos_empresa',
+    name: 'Mantenedor Contratos Empresa',
+    element: CommercialModule,
     permissionKey: 'commercial.contratos_empresa',
   },
   {

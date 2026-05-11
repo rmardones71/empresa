@@ -6,6 +6,7 @@ import {
   cilBuilding,
   cilDescription,
   cilFile,
+  cilFolder,
   cilIndustry,
   cilList,
   cilNotes,
@@ -27,6 +28,17 @@ const _nav = [
   {
     component: CNavTitle,
     name: 'Administracion',
+  },
+  {
+    component: CNavTitle,
+    name: 'Contratos',
+  },
+  {
+    component: CNavItem,
+    name: 'Contrato Empresa',
+    to: '/contratos-empresa',
+    icon: <CIcon icon={cilDescription} customClassName="nav-icon" />,
+    permissionKey: 'commercial.contratos_empresa',
   },
   {
     component: CNavGroup,
@@ -51,15 +63,8 @@ const _nav = [
       {
         component: CNavItem,
         name: 'Contratos',
-        to: '/commercial/contratos',
-        icon: <CIcon icon={cilDescription} customClassName="nav-icon" />,
-        permissionKey: 'commercial.contratos',
-      },
-      {
-        component: CNavItem,
-        name: 'Contrato Empresa',
-        to: '/commercial/contratos-empresa',
-        icon: <CIcon icon={cilBriefcase} customClassName="nav-icon" />,
+        to: '/commercial/contratos_empresa',
+        icon: <CIcon icon={cilFolder} customClassName="nav-icon" />,
         permissionKey: 'commercial.contratos_empresa',
       },
       {

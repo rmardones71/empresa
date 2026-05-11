@@ -47,13 +47,15 @@ BEGIN
 END
 GO
 
-IF COL_LENGTH('dbo.contrato', 'id_estado_ctr') IS NULL
+IF OBJECT_ID('dbo.contrato', 'U') IS NOT NULL
+  AND COL_LENGTH('dbo.contrato', 'id_estado_ctr') IS NULL
 BEGIN
   ALTER TABLE dbo.contrato ADD id_estado_ctr INT NULL;
 END
 GO
 
-IF NOT EXISTS (
+IF OBJECT_ID('dbo.contrato', 'U') IS NOT NULL
+  AND NOT EXISTS (
   SELECT 1
   FROM sys.foreign_keys
   WHERE name = 'FK_contrato_estado_ctr'
@@ -65,19 +67,23 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contrato_estado_ctr' AND object_id = OBJECT_ID('dbo.contrato'))
+IF OBJECT_ID('dbo.contrato', 'U') IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contrato_estado_ctr' AND object_id = OBJECT_ID('dbo.contrato'))
 BEGIN
   CREATE INDEX IX_contrato_estado_ctr ON dbo.contrato(id_estado_ctr);
 END
 GO
 
-UPDATE c
-SET id_estado_ctr = ec.id_estado_ctr
-FROM dbo.contrato c
-INNER JOIN dbo.estado_ctr ec
-  ON UPPER(LTRIM(RTRIM(ec.estado_ctr))) = UPPER(LTRIM(RTRIM(c.estado)))
-WHERE c.id_estado_ctr IS NULL
-  AND c.estado IS NOT NULL;
+IF OBJECT_ID('dbo.contrato', 'U') IS NOT NULL
+BEGIN
+  UPDATE c
+  SET id_estado_ctr = ec.id_estado_ctr
+  FROM dbo.contrato c
+  INNER JOIN dbo.estado_ctr ec
+    ON UPPER(LTRIM(RTRIM(ec.estado_ctr))) = UPPER(LTRIM(RTRIM(c.estado)))
+  WHERE c.id_estado_ctr IS NULL
+    AND c.estado IS NOT NULL;
+END
 GO
 
 IF OBJECT_ID('dbo.SystemModules', 'U') IS NOT NULL

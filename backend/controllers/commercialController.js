@@ -101,4 +101,19 @@ async function listChangeLog(req, res) {
   }
 }
 
-module.exports = { list, get, create, update, remove, lookups, listChangeLog }
+async function uploadFile(req, res) {
+  try {
+    const result = await service.uploadFile(req.body)
+    await auditLog({
+      userId: req.user.sub,
+      actionType: 'COMMERCIAL_UPLOAD',
+      description: `Uploaded ${result.fileName}`,
+      ipAddress: req.ip,
+    })
+    return res.status(201).json(result)
+  } catch (error) {
+    return sendError(res, error)
+  }
+}
+
+module.exports = { list, get, create, update, remove, lookups, listChangeLog, uploadFile }

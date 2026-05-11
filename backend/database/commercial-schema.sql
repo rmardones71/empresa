@@ -105,6 +105,7 @@ BEGIN
     giro NVARCHAR(200) NULL,
     rubro NVARCHAR(160) NULL,
     direccion NVARCHAR(240) NULL,
+    ciudad NVARCHAR(120) NULL,
     comuna NVARCHAR(120) NULL,
     region NVARCHAR(120) NULL,
     sitio_web NVARCHAR(240) NULL,
@@ -116,11 +117,16 @@ BEGIN
 END
 GO
 
+IF COL_LENGTH('dbo.empresa', 'ciudad') IS NULL
+BEGIN
+  ALTER TABLE dbo.empresa ADD ciudad NVARCHAR(120) NULL;
+END
+GO
+
 IF OBJECT_ID('dbo.contacto', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.contacto (
     id_contacto INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_contacto PRIMARY KEY,
-    rut_empresa NVARCHAR(15) NOT NULL,
     id_tipo_contacto INT NOT NULL,
     id_estado_contacto INT NOT NULL,
     rut NVARCHAR(15) NULL,
@@ -134,35 +140,8 @@ BEGIN
     estado NVARCHAR(80) NULL,
     fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_contacto_fecha_creacion DEFAULT (SYSUTCDATETIME()),
     fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_contacto_fecha_actualizacion DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT FK_contacto_empresa FOREIGN KEY (rut_empresa) REFERENCES dbo.empresa(rut),
     CONSTRAINT FK_contacto_tipo FOREIGN KEY (id_tipo_contacto) REFERENCES dbo.tipo_contacto(id_tipo_contacto),
     CONSTRAINT FK_contacto_estado FOREIGN KEY (id_estado_contacto) REFERENCES dbo.estado_contacto(id_estado_contacto)
-  );
-END
-GO
-
-IF OBJECT_ID('dbo.contrato', 'U') IS NULL
-BEGIN
-  CREATE TABLE dbo.contrato (
-    id_contrato INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_contrato PRIMARY KEY,
-    rut_empresa NVARCHAR(15) NOT NULL,
-    id_estado_vital INT NOT NULL,
-    id_estado_ctr INT NULL,
-    titulo NVARCHAR(240) NOT NULL,
-    fecha_firma DATE NULL,
-    fecha_inicio DATE NULL,
-    fecha_termino DATE NULL,
-    estado NVARCHAR(80) NULL,
-    fecha_facturacion DATE NULL,
-    medio_pago NVARCHAR(120) NULL,
-    reajustable BIT NOT NULL CONSTRAINT DF_contrato_reajustable DEFAULT (0),
-    multa DECIMAL(18,4) NULL,
-    requiere_oc BIT NOT NULL CONSTRAINT DF_contrato_requiere_oc DEFAULT (0),
-    fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_contrato_fecha_creacion DEFAULT (SYSUTCDATETIME()),
-    fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_contrato_fecha_actualizacion DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT FK_contrato_empresa FOREIGN KEY (rut_empresa) REFERENCES dbo.empresa(rut),
-    CONSTRAINT FK_contrato_estado_vital FOREIGN KEY (id_estado_vital) REFERENCES dbo.estado_vital(id_estado_vital),
-    CONSTRAINT FK_contrato_estado_ctr FOREIGN KEY (id_estado_ctr) REFERENCES dbo.estado_ctr(id_estado_ctr)
   );
 END
 GO
@@ -171,13 +150,14 @@ IF OBJECT_ID('dbo.linea', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.linea (
     id_linea INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_linea PRIMARY KEY,
-    id_contrato INT NOT NULL,
+    contrato_empresa_id INT NULL,
     id_tipo_servicio INT NOT NULL,
     id_tipo_tarifa INT NOT NULL,
     id_frecuencia INT NOT NULL,
     titulo NVARCHAR(240) NOT NULL,
     fecha_inicio DATE NULL,
     fecha_inicio_ciclo_facturacion DATE NULL,
+    divisa NVARCHAR(12) NOT NULL CONSTRAINT DF_linea_divisa DEFAULT (N'Peso'),
     tarifa_fija DECIMAL(18,4) NULL,
     tarifa_variable DECIMAL(18,4) NULL,
     moneda_fijo NVARCHAR(12) NULL,
@@ -186,7 +166,6 @@ BEGIN
     iva BIT NOT NULL CONSTRAINT DF_linea_iva DEFAULT (1),
     fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_linea_fecha_creacion DEFAULT (SYSUTCDATETIME()),
     fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_linea_fecha_actualizacion DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT FK_linea_contrato FOREIGN KEY (id_contrato) REFERENCES dbo.contrato(id_contrato),
     CONSTRAINT FK_linea_tipo_servicio FOREIGN KEY (id_tipo_servicio) REFERENCES dbo.tipo_servicio(id_tipo_servicio),
     CONSTRAINT FK_linea_tipo_tarifa FOREIGN KEY (id_tipo_tarifa) REFERENCES dbo.tipo_tarifa(id_tipo_tarifa),
     CONSTRAINT FK_linea_frecuencia FOREIGN KEY (id_frecuencia) REFERENCES dbo.frecuencia_facturacion(id_frecuencia)
@@ -199,15 +178,14 @@ BEGIN
   CREATE TABLE dbo.caso (
     id_caso INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_caso PRIMARY KEY,
     id_contacto INT NOT NULL,
-    id_contrato INT NOT NULL,
+    contrato_empresa_id INT NULL,
     titulo NVARCHAR(240) NOT NULL,
     texto NVARCHAR(MAX) NULL,
     adjuntos NVARCHAR(MAX) NULL,
     relato NVARCHAR(MAX) NULL,
     fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_caso_fecha_creacion DEFAULT (SYSUTCDATETIME()),
     fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_caso_fecha_actualizacion DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT FK_caso_contacto FOREIGN KEY (id_contacto) REFERENCES dbo.contacto(id_contacto),
-    CONSTRAINT FK_caso_contrato FOREIGN KEY (id_contrato) REFERENCES dbo.contrato(id_contrato)
+    CONSTRAINT FK_caso_contacto FOREIGN KEY (id_contacto) REFERENCES dbo.contacto(id_contacto)
   );
 END
 GO
@@ -216,7 +194,7 @@ IF OBJECT_ID('dbo.documentos', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.documentos (
     id_documento INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_documentos PRIMARY KEY,
-    id_contrato INT NOT NULL,
+    contrato_empresa_id INT NULL,
     tipo_documento NVARCHAR(120) NULL,
     nombre NVARCHAR(240) NOT NULL,
     descripcion NVARCHAR(1000) NULL,
@@ -226,8 +204,7 @@ BEGIN
     estado NVARCHAR(80) NULL,
     fecha_carga DATETIME2 NOT NULL CONSTRAINT DF_documentos_fecha_carga DEFAULT (SYSUTCDATETIME()),
     fecha_creacion DATETIME2 NOT NULL CONSTRAINT DF_documentos_fecha_creacion DEFAULT (SYSUTCDATETIME()),
-    fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_documentos_fecha_actualizacion DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT FK_documentos_contrato FOREIGN KEY (id_contrato) REFERENCES dbo.contrato(id_contrato)
+    fecha_actualizacion DATETIME2 NOT NULL CONSTRAINT DF_documentos_fecha_actualizacion DEFAULT (SYSUTCDATETIME())
   );
 END
 GO
@@ -245,7 +222,6 @@ VALUES
   (N'frecuencia_facturacion'),
   (N'empresa'),
   (N'contacto'),
-  (N'contrato'),
   (N'linea'),
   (N'caso'),
   (N'documentos');
@@ -281,24 +257,6 @@ CLOSE audit_cursor;
 DEALLOCATE audit_cursor;
 GO
 
-IF COL_LENGTH('dbo.contrato', 'id_estado_ctr') IS NULL
-BEGIN
-  ALTER TABLE dbo.contrato ADD id_estado_ctr INT NULL;
-END
-GO
-
-IF NOT EXISTS (
-  SELECT 1
-  FROM sys.foreign_keys
-  WHERE name = 'FK_contrato_estado_ctr'
-    AND parent_object_id = OBJECT_ID('dbo.contrato')
-)
-BEGIN
-  ALTER TABLE dbo.contrato WITH CHECK ADD CONSTRAINT FK_contrato_estado_ctr
-    FOREIGN KEY (id_estado_ctr) REFERENCES dbo.estado_ctr(id_estado_ctr);
-END
-GO
-
 IF OBJECT_ID('dbo.commercial_change_log', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.commercial_change_log (
@@ -320,52 +278,15 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_commercial_change_log_
   CREATE INDEX IX_commercial_change_log_registro ON dbo.commercial_change_log(recurso, id_registro, fecha_cambio DESC);
 GO
 
-IF EXISTS (
-  SELECT 1
-  FROM sys.foreign_keys
-  WHERE name = 'FK_contacto_empresa'
-    AND parent_object_id = OBJECT_ID('dbo.contacto')
-    AND update_referential_action_desc <> 'CASCADE'
-)
-BEGIN
-  ALTER TABLE dbo.contacto DROP CONSTRAINT FK_contacto_empresa;
-  ALTER TABLE dbo.contacto WITH CHECK ADD CONSTRAINT FK_contacto_empresa
-    FOREIGN KEY (rut_empresa) REFERENCES dbo.empresa(rut)
-    ON UPDATE CASCADE;
-END
-GO
-
-IF EXISTS (
-  SELECT 1
-  FROM sys.foreign_keys
-  WHERE name = 'FK_contrato_empresa'
-    AND parent_object_id = OBJECT_ID('dbo.contrato')
-    AND update_referential_action_desc <> 'CASCADE'
-)
-BEGIN
-  ALTER TABLE dbo.contrato DROP CONSTRAINT FK_contrato_empresa;
-  ALTER TABLE dbo.contrato WITH CHECK ADD CONSTRAINT FK_contrato_empresa
-    FOREIGN KEY (rut_empresa) REFERENCES dbo.empresa(rut)
-    ON UPDATE CASCADE;
-END
-GO
-
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_empresa_id_categoria' AND object_id = OBJECT_ID('dbo.empresa'))
   CREATE INDEX IX_empresa_id_categoria ON dbo.empresa(id_categoria);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contacto_rut_empresa' AND object_id = OBJECT_ID('dbo.contacto'))
-  CREATE INDEX IX_contacto_rut_empresa ON dbo.contacto(rut_empresa);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contacto_tipo' AND object_id = OBJECT_ID('dbo.contacto'))
   CREATE INDEX IX_contacto_tipo ON dbo.contacto(id_tipo_contacto);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contacto_estado' AND object_id = OBJECT_ID('dbo.contacto'))
   CREATE INDEX IX_contacto_estado ON dbo.contacto(id_estado_contacto);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contrato_rut_empresa' AND object_id = OBJECT_ID('dbo.contrato'))
-  CREATE INDEX IX_contrato_rut_empresa ON dbo.contrato(rut_empresa);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contrato_estado_vital' AND object_id = OBJECT_ID('dbo.contrato'))
-  CREATE INDEX IX_contrato_estado_vital ON dbo.contrato(id_estado_vital);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_contrato_estado_ctr' AND object_id = OBJECT_ID('dbo.contrato'))
-  CREATE INDEX IX_contrato_estado_ctr ON dbo.contrato(id_estado_ctr);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_linea_contrato' AND object_id = OBJECT_ID('dbo.linea'))
-  CREATE INDEX IX_linea_contrato ON dbo.linea(id_contrato);
+IF COL_LENGTH('dbo.linea', 'contrato_empresa_id') IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_linea_contrato_empresa' AND object_id = OBJECT_ID('dbo.linea'))
+  CREATE INDEX IX_linea_contrato_empresa ON dbo.linea(contrato_empresa_id);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_linea_tipo_servicio' AND object_id = OBJECT_ID('dbo.linea'))
   CREATE INDEX IX_linea_tipo_servicio ON dbo.linea(id_tipo_servicio);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_linea_tipo_tarifa' AND object_id = OBJECT_ID('dbo.linea'))
@@ -374,10 +295,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_linea_frecuencia' AND 
   CREATE INDEX IX_linea_frecuencia ON dbo.linea(id_frecuencia);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_caso_contacto' AND object_id = OBJECT_ID('dbo.caso'))
   CREATE INDEX IX_caso_contacto ON dbo.caso(id_contacto);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_caso_contrato' AND object_id = OBJECT_ID('dbo.caso'))
-  CREATE INDEX IX_caso_contrato ON dbo.caso(id_contrato);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_documentos_contrato' AND object_id = OBJECT_ID('dbo.documentos'))
-  CREATE INDEX IX_documentos_contrato ON dbo.documentos(id_contrato);
+IF COL_LENGTH('dbo.caso', 'contrato_empresa_id') IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_caso_contrato_empresa' AND object_id = OBJECT_ID('dbo.caso'))
+  CREATE INDEX IX_caso_contrato_empresa ON dbo.caso(contrato_empresa_id);
+IF COL_LENGTH('dbo.documentos', 'contrato_empresa_id') IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_documentos_contrato_empresa' AND object_id = OBJECT_ID('dbo.documentos'))
+  CREATE INDEX IX_documentos_contrato_empresa ON dbo.documentos(contrato_empresa_id);
 GO
 
 MERGE dbo.categoria AS target
@@ -434,15 +357,6 @@ USING (VALUES
 ) AS source (estado_ctr)
 ON target.estado_ctr = source.estado_ctr
 WHEN NOT MATCHED THEN INSERT (estado_ctr) VALUES (source.estado_ctr);
-GO
-
-UPDATE c
-SET id_estado_ctr = ec.id_estado_ctr
-FROM dbo.contrato c
-INNER JOIN dbo.estado_ctr ec
-  ON UPPER(LTRIM(RTRIM(ec.estado_ctr))) = UPPER(LTRIM(RTRIM(c.estado)))
-WHERE c.id_estado_ctr IS NULL
-  AND c.estado IS NOT NULL;
 GO
 
 MERGE dbo.tipo_servicio AS target

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -8,7 +8,12 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
+  CDropdown,
+  CDropdownItem,
+  CDropdownMenu,
+  CDropdownToggle,
   CForm,
+  CFormCheck,
   CFormFeedback,
   CFormInput,
   CFormLabel,
@@ -36,11 +41,13 @@ import {
   cilBuilding,
   cilCalendar,
   cilCheckCircle,
+  cilCloudDownload,
   cilContact,
   cilCreditCard,
   cilDescription,
   cilDollar,
   cilEnvelopeClosed,
+  cilExternalLink,
   cilFile,
   cilFolder,
   cilGlobeAlt,
@@ -66,17 +73,31 @@ import {
   cilTask,
   cilTrash,
   cilUser,
+  cilX,
   cilZoom,
 } from '@coreui/icons'
 import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
+import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
 import SortableTableHeader from 'src/components/SortableTableHeader'
+import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } from 'src/utils/export'
 import { runOnEnter } from 'src/utils/gridKeyboard'
-import { chileRegions, getComunasByRegion } from './chileLocations'
+import { chileRegions, getCiudadesByRegion, getComunasByCity } from './chileLocations'
 import { auditFields, getFieldLabel, resourceOrder, resources } from './commercialConfig'
 import { formatRut, getRutStatus } from './rutChile'
-import { commercialPermissionKey, hasPermission } from 'src/utils/permissions'
+import { commercialPermissionKey, hasPermission, isSecurityAdmin } from 'src/utils/permissions'
+
+const masterResourceKeys = new Set([
+  'categorias',
+  'tipo_contactos',
+  'estado_contactos',
+  'estado_vitales',
+  'estados_ctr',
+  'tipo_servicios',
+  'tipo_tarifas',
+  'frecuencias',
+])
 
 const emptyFromConfig = (config) =>
   config.fields
@@ -98,6 +119,76 @@ const normalizeDateValue = (value, type) => {
   if (type === 'date') return String(value).slice(0, 10)
   return value
 }
+
+const normalizeSearchQuery = (value) => String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120)
+
+const amountFields = new Set(['tarifa_fija', 'tarifa_variable'])
+
+const normalizeAmountInput = (value) => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  return raw.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').replace(/\s/g, '')
+}
+
+const formatCurrencyAmount = (value, divisa = 'Peso') => {
+  if (value === null || value === undefined || value === '') return '-'
+  const number = Number(normalizeAmountInput(value))
+  if (!Number.isFinite(number)) return String(value)
+  if (divisa === 'UF') {
+    return number.toLocaleString('es-CL', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    })
+  }
+  return `$${Math.round(number).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`
+}
+
+const formatAmountForInput = (value, divisa = 'Peso') => {
+  if (value === null || value === undefined || value === '') return ''
+  const number = Number(normalizeAmountInput(value))
+  if (!Number.isFinite(number)) return String(value)
+  if (divisa === 'UF') {
+    return number.toLocaleString('es-CL', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    })
+  }
+  return `$${Math.round(number).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`
+}
+
+const normalizeAmountForSave = (value, divisa = 'Peso') => {
+  const number = Number(normalizeAmountInput(value))
+  if (!Number.isFinite(number)) return null
+  return divisa === 'UF' ? Number(number.toFixed(4)) : Math.round(number)
+}
+
+const acceptedDocumentTypes =
+  '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/png,image/jpeg,text/plain'
+
+const uploadDocumentFile = (file) =>
+  new Promise((resolve, reject) => {
+    if (!file) return resolve(null)
+    const maxBytes = 8 * 1024 * 1024
+    if (file.size > maxBytes) {
+      reject(new Error('El archivo no puede superar 8 MB'))
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const res = await api.post('/api/commercial/uploads', {
+          fileName: file.name,
+          mimeType: file.type,
+          dataUrl: reader.result,
+        })
+        resolve(res.data)
+      } catch (error) {
+        reject(new Error(error.response?.data?.message || 'No se pudo subir el archivo'))
+      }
+    }
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    reader.readAsDataURL(file)
+  })
 
 const formIconMap = {
   addressBook: cilAddressBook,
@@ -166,11 +257,15 @@ const fieldIconMap = {
   reajustable: cilDollar,
   multa: cilMoney,
   requiere_oc: cilTask,
+  requiere_orden_compra: cilTask,
+  activo: cilCheckCircle,
   id_contrato: cilDescription,
+  contrato_empresa_id: cilDescription,
   id_tipo_servicio: cilSettings,
   id_tipo_tarifa: cilMoney,
   id_frecuencia: cilCalendar,
   fecha_inicio_ciclo_facturacion: cilCalendar,
+  divisa: cilMoney,
   tarifa_fija: cilDollar,
   tarifa_variable: cilDollar,
   moneda_fijo: cilMoney,
@@ -216,14 +311,52 @@ const formatDateTime = (value) => {
 }
 
 const formatFieldValue = (fieldName, value) => {
+  if (fieldName === 'activo') return value ? 'Activo' : 'Inactivo'
   if (['fecha_creacion', 'fecha_actualizacion', 'fecha_cambio'].includes(fieldName)) {
     return formatDateTime(value)
   }
   return formatValue(value)
 }
 
+const renderListValue = (fieldName, value, row = {}) => {
+  if (fieldName === 'activo') {
+    return (
+      <span className={`macos-status-pill ${value ? 'is-active' : 'is-inactive'}`}>
+        {value ? 'Activo' : 'Inactivo'}
+      </span>
+    )
+  }
+  if (['adjuntos', 'archivo'].includes(fieldName)) {
+    if (!value) return '-'
+    return (
+      <CButton
+        as="a"
+        href={String(value)}
+        target="_blank"
+        rel="noopener noreferrer"
+        size="sm"
+        color="secondary"
+        variant="outline"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <CIcon icon={cilCloudDownload} className="me-1" />
+        Bajar
+      </CButton>
+    )
+  }
+  if (amountFields.has(fieldName)) return formatCurrencyAmount(value, row.divisa)
+  return formatFieldValue(fieldName, value)
+}
+
+const formatExportValue = (fieldName, value, row = {}) => {
+  if (fieldName === 'activo') return value ? 'Activo' : 'Inactivo'
+  if (amountFields.has(fieldName)) return formatCurrencyAmount(value, row.divisa)
+  return formatFieldValue(fieldName, value)
+}
+
 const CommercialModule = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
   const resourceKey = location.pathname.split('/').filter(Boolean).pop()
@@ -234,6 +367,9 @@ const CommercialModule = () => {
   const canRead = hasPermission(user, moduleKey, 'read')
   const canWrite = hasPermission(user, moduleKey, 'write')
   const canDelete = hasPermission(user, moduleKey, 'delete')
+  const canHardDelete = resourceKey === 'contratos_empresa' ? canDelete && isSecurityAdmin(user?.role) : canDelete
+  const canExport = isPrivilegedRole(user?.role)
+  const columnsStorageKey = `crm_commercial_${resourceKey}_grid_columns_v1`
 
   const [items, setItems] = useState([])
   const [lookups, setLookups] = useState({})
@@ -250,11 +386,37 @@ const CommercialModule = () => {
   const [formData, setFormData] = useState(config ? emptyFromConfig(config) : {})
   const [changeLogs, setChangeLogs] = useState([])
   const [loadingLog, setLoadingLog] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState({})
+  const [exporting, setExporting] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState('xlsx')
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const listFields = useMemo(
-    () => (config ? [...config.listFields, ...auditFields.map((field) => field.name)] : []),
+    () =>
+      config
+        ? [
+            ...config.listFields,
+            ...(config.audit === false ? [] : auditFields.map((field) => field.name)),
+          ]
+        : [],
     [config],
+  )
+  const columns = useMemo(
+    () => [
+      ...listFields.map((field) => ({ key: field, label: getFieldLabel(config, field) })),
+      { key: 'actions', label: 'Acciones', sortable: false },
+    ],
+    [config, listFields],
+  )
+
+  const defaultVisibleColumns = useMemo(
+    () =>
+      columns.reduce((acc, column) => {
+        acc[column.key] = true
+        return acc
+      }, {}),
+    [columns],
   )
 
   const getRecordId = (row) => {
@@ -276,9 +438,15 @@ const CommercialModule = () => {
       setChangeLogs([])
       setCurrent(null)
       setModalMode(null)
+      try {
+        const raw = window.localStorage.getItem(`crm_commercial_${resourceKey}_grid_columns_v1`)
+        setVisibleColumns(raw ? { ...defaultVisibleColumns, ...JSON.parse(raw) } : defaultVisibleColumns)
+      } catch (error) {
+        setVisibleColumns(defaultVisibleColumns)
+      }
     }, 0)
     return () => window.clearTimeout(timeoutId)
-  }, [config, resourceKey])
+  }, [config, defaultVisibleColumns, resourceKey])
 
   const loadLookups = async () => {
     const res = await api.get('/api/commercial/lookups')
@@ -288,11 +456,12 @@ const CommercialModule = () => {
   const load = async ({ pageOverride, qOverride } = {}) => {
     setLoading(true)
     try {
+      const searchText = normalizeSearchQuery(qOverride ?? q)
       const res = await api.get(`/api/commercial/${config.endpoint}`, {
         params: {
           page: pageOverride ?? page,
           pageSize,
-          q: qOverride ?? q,
+          q: searchText,
           sortBy,
           sortDir,
         },
@@ -304,6 +473,110 @@ const CommercialModule = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const setColumnVisible = (key, value) => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev, [key]: value }
+      try {
+        window.localStorage.setItem(columnsStorageKey, JSON.stringify(next))
+      } catch (error) {
+        // ignore
+      }
+      return next
+    })
+  }
+
+  const isColumnVisible = (key) => visibleColumns[key] !== false
+
+  const getVisibleExportColumns = () => columns.filter((column) => column.key !== 'actions' && isColumnVisible(column.key))
+
+  const fetchAllRecords = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+    const pageSizeAll = 100
+    const dateParams = allRecords
+      ? {}
+      : buildDateRangeParams({ dateFrom: dateFromOverride, dateTo: dateToOverride })
+    const all = []
+    let pageAll = 1
+    while (true) {
+      const res = await api.get(`/api/commercial/${config.endpoint}`, {
+        params: {
+          page: pageAll,
+          pageSize: pageSizeAll,
+          q: normalizeSearchQuery(q),
+          sortBy,
+          sortDir,
+          ...dateParams,
+        },
+      })
+      const batch = res.data.items || []
+      all.push(...batch)
+      if (all.length >= Number(res.data.total || 0) || batch.length < pageSizeAll) break
+      pageAll += 1
+    }
+    return all
+  }
+
+  const exportExcel = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+    setExporting(true)
+    try {
+      const exportColumns = getVisibleExportColumns()
+      const all = await fetchAllRecords({ allRecords, dateFromOverride, dateToOverride })
+      const rows = all.map((row) =>
+        exportColumns.reduce((acc, column) => {
+          acc[column.label] = formatExportValue(column.key, row[column.key], row)
+          return acc
+        }, {}),
+      )
+      const dateTag = new Date().toISOString().slice(0, 10)
+      await exportToXlsx({
+        fileName: `${config.endpoint}_${dateTag}.xlsx`,
+        sheetName: config.title.slice(0, 31),
+        rows,
+      })
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo exportar')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const exportPdf = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+    setExporting(true)
+    try {
+      const exportColumns = getVisibleExportColumns()
+      const all = await fetchAllRecords({ allRecords, dateFromOverride, dateToOverride })
+      const head = exportColumns.map((column) => column.label)
+      const body = all.map((row) =>
+        exportColumns.map((column) => String(formatExportValue(column.key, row[column.key], row) ?? '')),
+      )
+      const dateTag = new Date().toISOString().slice(0, 10)
+      await exportToPdf({
+        fileName: `${config.endpoint}_${dateTag}.pdf`,
+        title: config.title,
+        head,
+        body,
+      })
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo exportar')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const openExport = (format) => {
+    if (!canExport) return
+    setExportFormat(format)
+    setExportModalOpen(true)
+  }
+
+  const confirmExport = async ({ allRecords, dateFrom, dateTo, format }) => {
+    if (format === 'pdf') {
+      await exportPdf({ allRecords, dateFromOverride: dateFrom, dateToOverride: dateTo })
+    } else {
+      await exportExcel({ allRecords, dateFromOverride: dateFrom, dateToOverride: dateTo })
+    }
+    setExportModalOpen(false)
   }
 
   useEffect(() => {
@@ -409,9 +682,17 @@ const CommercialModule = () => {
     }
   }
 
+  const openFunctionalForm = (row) => {
+    const recordId = getRecordId(row)
+    if (!recordId) return
+    navigate(`/contratos-empresa?open=${encodeURIComponent(recordId)}`)
+  }
+
   const onSearch = () => {
+    const searchText = normalizeSearchQuery(q)
+    setQ(searchText)
     setPage(1)
-    load({ pageOverride: 1 }).catch(() => {})
+    load({ pageOverride: 1, qOverride: searchText }).catch(() => {})
   }
 
   const handleSort = (key) => {
@@ -425,8 +706,33 @@ const CommercialModule = () => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-      ...(field === 'region' ? { comuna: '' } : {}),
+      ...(field === 'region' ? { ciudad: '', comuna: '' } : {}),
+      ...(field === 'ciudad' ? { comuna: '' } : {}),
+      ...(field === 'divisa'
+        ? {
+            tarifa_fija:
+              prev.tarifa_fija === '' || prev.tarifa_fija == null
+                ? prev.tarifa_fija
+                : formatAmountForInput(prev.tarifa_fija, value),
+            tarifa_variable:
+              prev.tarifa_variable === '' || prev.tarifa_variable == null
+                ? prev.tarifa_variable
+                : formatAmountForInput(prev.tarifa_variable, value),
+          }
+        : {}),
     }))
+  }
+
+  const buildSubmitData = () => {
+    const payload = { ...formData }
+    if (resourceKey === 'lineas') {
+      payload.divisa = payload.divisa || 'Peso'
+      for (const field of amountFields) {
+        if (payload[field] === '' || payload[field] == null) continue
+        payload[field] = normalizeAmountForSave(payload[field], payload.divisa)
+      }
+    }
+    return payload
   }
 
   const validate = () => {
@@ -468,11 +774,11 @@ const CommercialModule = () => {
       if (currentId) {
         await api.put(
           `/api/commercial/${config.endpoint}/${encodeURIComponent(currentId)}`,
-          formData,
+          buildSubmitData(),
         )
         toast.success(`${config.singular} actualizado`)
       } else {
-        await api.post(`/api/commercial/${config.endpoint}`, formData)
+        await api.post(`/api/commercial/${config.endpoint}`, buildSubmitData())
         toast.success(`${config.singular} creado`)
       }
       closeModal()
@@ -487,12 +793,17 @@ const CommercialModule = () => {
   }
 
   const remove = async (row) => {
-    if (!canDelete) return
+    if (!canHardDelete) return
     const recordId = getRecordId(row)
     const label = row[config.displayField] || recordId
+    const isContractMaintainer = resourceKey === 'contratos_empresa'
     if (!window.confirm(`Seguro que deseas eliminar "${label}"?`)) return
     try {
-      await api.delete(`/api/commercial/${config.endpoint}/${encodeURIComponent(recordId)}`)
+      if (isContractMaintainer) {
+        await api.delete(`/api/contratos-empresa/${encodeURIComponent(recordId)}`)
+      } else {
+        await api.delete(`/api/commercial/${config.endpoint}/${encodeURIComponent(recordId)}`)
+      }
       toast.success(`${config.singular} eliminado`)
       await loadLookups()
       await load()
@@ -560,9 +871,10 @@ const CommercialModule = () => {
     }
 
     if (field.type === 'chile-comuna') {
-      const parentField = field.dependsOn || 'region'
-      const parentValue = formData[parentField]
-      const comunas = getComunasByRegion(parentValue)
+      const regionValue = formData.region
+      const cityField = field.dependsOn || 'ciudad'
+      const cityValue = formData[cityField]
+      const comunas = getComunasByCity(regionValue, cityValue)
       const options = value && !comunas.includes(value) ? [value, ...comunas] : comunas
 
       return (
@@ -570,14 +882,38 @@ const CommercialModule = () => {
           value={value ?? ''}
           onChange={(event) => setField(field.name, event.target.value)}
           required={field.required}
-          disabled={!parentValue}
+          disabled={!regionValue || !cityValue}
         >
           <option value="">
-            {parentValue ? 'Seleccione comuna...' : 'Seleccione region primero'}
+            {cityValue ? 'Seleccione comuna...' : 'Seleccione ciudad primero'}
           </option>
           {options.map((comuna) => (
             <option key={comuna} value={comuna}>
               {comuna}
+            </option>
+          ))}
+        </CFormSelect>
+      )
+    }
+
+    if (field.type === 'chile-city') {
+      const regionValue = formData[field.dependsOn || 'region']
+      const ciudades = getCiudadesByRegion(regionValue)
+      const options = value && !ciudades.includes(value) ? [value, ...ciudades] : ciudades
+
+      return (
+        <CFormSelect
+          value={value ?? ''}
+          onChange={(event) => setField(field.name, event.target.value)}
+          required={field.required}
+          disabled={!regionValue}
+        >
+          <option value="">
+            {regionValue ? 'Seleccione ciudad...' : 'Seleccione region primero'}
+          </option>
+          {options.map((ciudad) => (
+            <option key={ciudad} value={ciudad}>
+              {ciudad}
             </option>
           ))}
         </CFormSelect>
@@ -596,6 +932,24 @@ const CommercialModule = () => {
           {(lookups[field.lookup] || []).map((item) => (
             <option key={item.id} value={item.id}>
               {item.label}
+            </option>
+          ))}
+        </CFormSelect>
+      )
+    }
+
+    if (field.type === 'static-select') {
+      return (
+        <CFormSelect
+          value={value ?? field.defaultValue ?? ''}
+          onChange={(event) => setField(field.name, event.target.value)}
+          required={field.required}
+          disabled={disabled}
+        >
+          <option value="">Seleccione...</option>
+          {(field.options || []).map((option) => (
+            <option key={option} value={option}>
+              {option}
             </option>
           ))}
         </CFormSelect>
@@ -649,6 +1003,71 @@ const CommercialModule = () => {
       )
     }
 
+    if (field.type === 'currency-amount') {
+      const divisa = formData.divisa || 'Peso'
+      return (
+        <CFormInput
+          type="text"
+          inputMode={divisa === 'UF' ? 'decimal' : 'numeric'}
+          value={value ?? ''}
+          onBlur={(event) => setField(field.name, formatAmountForInput(event.target.value, divisa))}
+          onChange={(event) => setField(field.name, event.target.value)}
+          required={field.required}
+          disabled={disabled}
+          placeholder={divisa === 'UF' ? '0,0000' : '$0'}
+        />
+      )
+    }
+
+    if (field.type === 'file-upload') {
+      const inputId = `${resourceKey}-${field.name}-upload`
+      return (
+        <div className="mac-file-upload">
+          <input
+            id={inputId}
+            className="mac-file-upload-input"
+            type="file"
+            accept={acceptedDocumentTypes}
+            onChange={async (event) => {
+              const file = event.target.files?.[0]
+              if (!file) return
+              try {
+                const uploaded = await uploadDocumentFile(file)
+                if (uploaded?.url) setField(field.name, uploaded.url)
+                toast.success('Archivo cargado')
+              } catch (error) {
+                toast.error(error.message)
+              } finally {
+                event.target.value = ''
+              }
+            }}
+            disabled={disabled || saving}
+          />
+          <div className="mac-file-upload-row">
+            <label className="mac-file-upload-button" htmlFor={inputId}>
+              Seleccionar archivo
+            </label>
+            <span className="mac-file-upload-caption">
+              PDF, Word, Excel, imagen o TXT
+            </span>
+          </div>
+          <div className="mac-file-upload-url">
+            <CFormLabel className="commercial-field-label">
+              <CIcon icon={cilLink} />
+              <span>URL</span>
+            </CFormLabel>
+            <CFormInput
+              type="url"
+              placeholder="https://..."
+              value={value ?? ''}
+              onChange={(event) => setField(field.name, event.target.value)}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      )
+    }
+
     return (
       <CFormInput
         type={field.type}
@@ -660,7 +1079,10 @@ const CommercialModule = () => {
     )
   }
 
-  const detailFields = [...config.fields, ...auditFields].filter(
+  const detailFields = [
+    ...config.fields,
+    ...(config.audit === false ? [] : auditFields),
+  ].filter(
     (field) => !field.createOnly || current?.[field.name],
   )
 
@@ -680,19 +1102,63 @@ const CommercialModule = () => {
             <CIcon icon={cilBriefcase} className="me-2" />
             <span className="fw-semibold">{config.title}</span>
           </div>
-          {canCreate && (
-            <CButton color="primary" onClick={openCreate}>
-              <CIcon icon={cilPlus} className="me-1" />
-              Nuevo
-            </CButton>
-          )}
+          <div className="d-flex gap-2 flex-wrap justify-content-end">
+            <CDropdown>
+              <CDropdownToggle color="secondary" variant="outline">
+                Filtrar Columnas
+              </CDropdownToggle>
+              <CDropdownMenu style={{ minWidth: 260 }}>
+                {columns
+                  .filter((column) => column.key !== 'actions')
+                  .map((column) => (
+                    <CDropdownItem as="div" key={column.key} className="py-2">
+                      <CFormCheck
+                        label={column.label}
+                        checked={isColumnVisible(column.key)}
+                        onChange={(event) => setColumnVisible(column.key, event.target.checked)}
+                      />
+                    </CDropdownItem>
+                  ))}
+              </CDropdownMenu>
+            </CDropdown>
+            {canExport && (
+              <>
+                <CButton
+                  color="secondary"
+                  variant="outline"
+                  onClick={() => openExport('xlsx')}
+                  disabled={exporting || loading}
+                >
+                  <CIcon icon={cilCloudDownload} className="me-1" />
+                  Excel
+                </CButton>
+                <CButton
+                  color="secondary"
+                  variant="outline"
+                  onClick={() => openExport('pdf')}
+                  disabled={exporting || loading}
+                >
+                  <CIcon icon={cilCloudDownload} className="me-1" />
+                  PDF
+                </CButton>
+              </>
+            )}
+            {canCreate && (
+              <CButton color="primary" onClick={openCreate}>
+                <CIcon icon={cilPlus} className="me-1" />
+                Nuevo
+              </CButton>
+            )}
+          </div>
         </CCardHeader>
         <CCardBody>
           <div className="commercial-tabs mb-3">
             {readableResourceOrder.map((key) => (
               <Link
                 key={key}
-                className={`commercial-tab ${key === resourceKey ? 'active' : ''}`}
+                className={`commercial-tab ${masterResourceKeys.has(key) ? 'master' : ''} ${
+                  key === resourceKey ? 'active' : ''
+                }`}
                 to={`/commercial/${key}`}
               >
                 {resources[key].title}
@@ -707,6 +1173,7 @@ const CommercialModule = () => {
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
                 onKeyDown={runOnEnter(onSearch)}
+                disabled={loading}
               />
             </CCol>
             <CCol md={4} className="d-flex gap-2">
@@ -729,45 +1196,66 @@ const CommercialModule = () => {
                   setPage(1)
                   load({ pageOverride: 1, qOverride: '' }).catch(() => {})
                 }}
-                disabled={loading}
+                disabled={loading || !q}
               >
-                Todo
+                <CIcon icon={cilX} className="me-1" />
+                Limpiar
               </CButton>
             </CCol>
           </CRow>
 
-          <div className="macos-grid commercial-grid">
+          <div className={`macos-grid commercial-grid commercial-grid-${resourceKey}`}>
             <CTable hover responsive>
               <CTableHead>
                 <CTableRow>
-                  {listFields.map((field) => (
-                    <SortableTableHeader
-                      key={field}
-                      column={{ key: field, label: getFieldLabel(config, field) }}
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  ))}
-                  <SortableTableHeader
-                    column={{ key: 'actions', label: 'Acciones', sortable: false }}
-                    sortBy={sortBy}
-                    sortDir={sortDir}
-                    onSort={handleSort}
-                    className="actions-cell"
-                  />
+                  {columns.map((column) => {
+                    if (column.key !== 'actions' && !isColumnVisible(column.key)) return null
+                    if (column.key === 'actions') {
+                      return (
+                        <SortableTableHeader
+                          key={column.key}
+                          column={column}
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                          className="actions-cell"
+                        />
+                      )
+                    }
+                    return (
+                      <SortableTableHeader
+                        key={column.key}
+                        column={column}
+                        sortBy={sortBy}
+                        sortDir={sortDir}
+                        onSort={handleSort}
+                      />
+                    )
+                  })}
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {items.map((row, index) => (
                   <CTableRow key={`${resourceKey}-${getRecordId(row) || index}`}>
-                    {listFields.map((field) => (
-                      <CTableDataCell key={field}>
-                        {formatFieldValue(field, row[field])}
-                      </CTableDataCell>
-                    ))}
+                    {listFields.map((field) =>
+                      isColumnVisible(field) ? (
+                        <CTableDataCell key={field}>
+                          {renderListValue(field, row[field], row)}
+                        </CTableDataCell>
+                      ) : null,
+                    )}
                     <CTableDataCell className="actions-cell">
                       <CButtonGroup size="sm">
+                        {resourceKey === 'contratos_empresa' && (
+                          <CButton
+                            className="grid-action-open"
+                            color="secondary"
+                            variant="outline"
+                            onClick={() => openFunctionalForm(row)}
+                          >
+                            <CIcon icon={cilExternalLink} />
+                          </CButton>
+                        )}
                         <CButton
                           className="grid-action-view"
                           color="secondary"
@@ -794,7 +1282,7 @@ const CommercialModule = () => {
                         >
                           <CIcon icon={cilHistory} />
                         </CButton>
-                        {canDelete && (
+                        {canHardDelete && (
                           <CButton color="danger" variant="outline" onClick={() => remove(row)}>
                             <CIcon icon={cilTrash} />
                           </CButton>
@@ -806,7 +1294,7 @@ const CommercialModule = () => {
                 {items.length === 0 && (
                   <CTableRow>
                     <CTableDataCell
-                      colSpan={listFields.length + 1}
+                      colSpan={listFields.filter((field) => isColumnVisible(field)).length + 1}
                       className="text-center text-body-secondary"
                     >
                       Sin resultados
@@ -863,7 +1351,10 @@ const CommercialModule = () => {
                     </div>
                     <CRow className="g-3">
                       {section.fields.map((field) => (
-                        <CCol md={field.type === 'textarea' ? 12 : 6} key={field.name}>
+                        <CCol
+                          md={['textarea', 'file-upload'].includes(field.type) ? 12 : 6}
+                          key={field.name}
+                        >
                           <div className="commercial-form-field">
                             <CFormLabel className="commercial-field-label">
                               <CIcon icon={getFieldIcon(field)} />
@@ -908,12 +1399,16 @@ const CommercialModule = () => {
                 <div key={field.name}>
                   <span className="text-body-secondary">{field.label}</span>
                   <strong>
-                    {formatFieldValue(
-                      field.name,
-                      current[
-                        field.lookup ? field.label?.toLowerCase().replaceAll(' ', '_') : field.name
-                      ] ?? current[field.name],
-                    )}
+                    {amountFields.has(field.name)
+                      ? formatCurrencyAmount(current[field.name], current.divisa)
+                      : formatFieldValue(
+                          field.name,
+                          current[
+                            field.lookup
+                              ? field.label?.toLowerCase().replaceAll(' ', '_')
+                              : field.name
+                          ] ?? current[field.name],
+                        )}
                   </strong>
                 </div>
               ))}
@@ -983,6 +1478,14 @@ const CommercialModule = () => {
           </CButton>
         </CModalFooter>
       </CModal>
+
+      <ExportModal
+        visible={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onConfirm={confirmExport}
+        submitting={exporting}
+        format={exportFormat}
+      />
     </>
   )
 }

@@ -1,4 +1,7 @@
+const fs = require('fs')
+const path = require('path')
 const repository = require('../repositories/commercialRepository')
+const { query: sqlQuery } = require('../database/db')
 const { getResource, lookupResources } = require('../models/commercialModel')
 const { formatRut, isRutValid } = require('../utils/rutChile')
 
@@ -52,10 +55,79 @@ function conflict(message) {
   return error
 }
 
+async function ensureResourceSchema(resourceName) {
+  if (resourceName !== 'empresas') return
+  await sqlQuery(`
+    IF COL_LENGTH('dbo.empresa', 'ciudad') IS NULL
+    BEGIN
+      ALTER TABLE dbo.empresa ADD ciudad NVARCHAR(120) NULL;
+    END
+  `)
+}
+
+const allowedUploadTypes = new Map([
+  ['application/pdf', '.pdf'],
+  ['application/msword', '.doc'],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.docx'],
+  ['application/vnd.ms-excel', '.xls'],
+  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx'],
+  ['image/png', '.png'],
+  ['image/jpeg', '.jpg'],
+  ['text/plain', '.txt'],
+])
+
+function sanitizeFileName(fileName = 'archivo') {
+  return String(fileName)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 120)
+}
+
+async function uploadFile(body = {}) {
+  const fileName = sanitizeFileName(body.fileName)
+  const mimeType = String(body.mimeType || '')
+  const dataUrl = String(body.dataUrl || '')
+  const extension = allowedUploadTypes.get(mimeType)
+
+  if (!extension) throw validation('Formato de archivo no permitido', 'archivo')
+  if (!dataUrl.startsWith('data:')) throw validation('Archivo invalido', 'archivo')
+
+  const base64 = dataUrl.split(',')[1]
+  if (!base64) throw validation('Archivo invalido', 'archivo')
+
+  const buffer = Buffer.from(base64, 'base64')
+  const maxBytes = 8 * 1024 * 1024
+  if (buffer.length > maxBytes) throw validation('El archivo no puede superar 8 MB', 'archivo')
+
+  const uploadRoot = path.join(__dirname, '..', 'uploads', 'commercial')
+  await fs.promises.mkdir(uploadRoot, { recursive: true })
+
+  const currentExtension = path.extname(fileName).toLowerCase()
+  const baseName = path.basename(fileName, currentExtension || extension)
+  const finalExtension = currentExtension || extension
+  const storedName = `${Date.now()}-${Math.random().toString(16).slice(2)}-${baseName}${finalExtension}`
+  const finalPath = path.join(uploadRoot, storedName)
+
+  await fs.promises.writeFile(finalPath, buffer)
+
+  return {
+    fileName,
+    mimeType,
+    size: buffer.length,
+    url: `/uploads/commercial/${storedName}`,
+  }
+}
+
 function getDefinition(resourceName) {
   const resource = getResource(resourceName)
   if (!resource) throw notFound(resourceName)
   return resource
+}
+
+function normalizeSearchQuery(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120)
 }
 
 function castValue(field, value) {
@@ -98,6 +170,10 @@ function buildPayload(resource, body, { isCreate }) {
     payload[field.name] = value
   }
 
+  if (resource.table === 'dbo.contacto' && payload.autoriza_comunicaciones == null) {
+    payload.autoriza_comunicaciones = false
+  }
+
   for (const requiredField of resource.required || []) {
     const value = payload[requiredField]
     if (value === undefined || value === null || value === '') {
@@ -131,17 +207,29 @@ function buildPayload(resource, body, { isCreate }) {
 }
 
 async function list(resourceName, query) {
+  await ensureResourceSchema(resourceName)
   const resource = getDefinition(resourceName)
   const page = Math.max(1, Number(query.page || 1))
   const pageSize = Math.min(100, Math.max(10, Number(query.pageSize || 20)))
-  const q = String(query.q || '').trim()
+  const q = normalizeSearchQuery(query.q)
   const sortBy = String(query.sortBy || resource.idField)
   const sortDir = String(query.sortDir || 'asc')
-  const result = await repository.list(resource, { page, pageSize, q, sortBy, sortDir })
+  const dateFrom = query.dateFrom ? new Date(String(query.dateFrom)) : null
+  const dateTo = query.dateTo ? new Date(String(query.dateTo)) : null
+  const result = await repository.list(resource, {
+    page,
+    pageSize,
+    q,
+    sortBy,
+    sortDir,
+    dateFrom: dateFrom && !Number.isNaN(dateFrom.getTime()) ? dateFrom : null,
+    dateTo: dateTo && !Number.isNaN(dateTo.getTime()) ? dateTo : null,
+  })
   return { page, pageSize, total: result.total, items: result.items }
 }
 
 async function get(resourceName, rawId) {
+  await ensureResourceSchema(resourceName)
   const resource = getDefinition(resourceName)
   const id = repository.parseId(resource, rawId)
   if (id == null) throw validation('Identificador invalido', resource.idField)
@@ -151,6 +239,7 @@ async function get(resourceName, rawId) {
 }
 
 async function create(resourceName, body, actor) {
+  await ensureResourceSchema(resourceName)
   const resource = getDefinition(resourceName)
   const payload = buildPayload(resource, body, { isCreate: true })
   if (resource.audit) payload.usuario_creacion_id = actor?.userId ?? null
@@ -167,6 +256,7 @@ async function create(resourceName, body, actor) {
 }
 
 async function update(resourceName, rawId, body, actor) {
+  await ensureResourceSchema(resourceName)
   const resource = getDefinition(resourceName)
   const id = repository.parseId(resource, rawId)
   if (id == null) throw validation('Identificador invalido', resource.idField)
@@ -185,6 +275,7 @@ async function update(resourceName, rawId, body, actor) {
 }
 
 async function remove(resourceName, rawId, actor) {
+  await ensureResourceSchema(resourceName)
   const resource = getDefinition(resourceName)
   const id = repository.parseId(resource, rawId)
   if (id == null) throw validation('Identificador invalido', resource.idField)
@@ -216,6 +307,8 @@ async function remove(resourceName, rawId, actor) {
 async function lookups() {
   const data = {}
   for (const resourceName of lookupResources) {
+    // eslint-disable-next-line no-await-in-loop
+    await ensureResourceSchema(resourceName)
     const resource = getDefinition(resourceName)
     // eslint-disable-next-line no-await-in-loop
     data[resourceName] = await repository.listLookup(resource)
@@ -230,4 +323,4 @@ async function listChangeLog(resourceName, rawId) {
   return repository.listChangeLog(resourceName, id)
 }
 
-module.exports = { list, get, create, update, remove, lookups, listChangeLog }
+module.exports = { list, get, create, update, remove, lookups, listChangeLog, uploadFile }

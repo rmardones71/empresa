@@ -10,6 +10,14 @@ function uniqueFields(fields) {
   return [...new Set(fields)]
 }
 
+function normalizeSearchText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120)
+}
+
+function escapeLike(value) {
+  return normalizeSearchText(value).replace(/[~%_[\]]/g, (match) => `~${match}`)
+}
+
 function assertField(resource, fieldName) {
   const allowed = new Set([
     resource.idField,
@@ -67,20 +75,44 @@ function buildSelect(resource) {
   }
 }
 
-function buildWhere(resource, q, params) {
+function getDateFilterField(resource) {
+  const fieldNames = new Set(fieldNamesForResource(resource))
+  if (fieldNames.has('fecha_creacion')) return 'fecha_creacion'
+  if (fieldNames.has('created_at')) return 'created_at'
+  return null
+}
+
+function fieldNamesForResource(resource) {
+  return fieldNames(resource)
+}
+
+function buildWhere(resource, q, params, dateRange = {}) {
   const where = []
-  if (q && resource.searchFields?.length) {
-    const likeParts = resource.searchFields.map((field) => `base.${field} LIKE @q`)
+  const searchText = normalizeSearchText(q)
+  if (searchText && resource.searchFields?.length) {
+    const likeParts = resource.searchFields.map(
+      (field) => `CONVERT(NVARCHAR(4000), base.${field}) COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+    )
     where.push(`(${likeParts.join(' OR ')})`)
-    params.q = `%${q}%`
+    params.q = `%${escapeLike(searchText)}%`
+  }
+
+  const dateField = getDateFilterField(resource)
+  if (dateField && dateRange.dateFrom) {
+    where.push(`base.${dateField} >= @dateFrom`)
+    params.dateFrom = dateRange.dateFrom
+  }
+  if (dateField && dateRange.dateTo) {
+    where.push(`base.${dateField} <= @dateTo`)
+    params.dateTo = dateRange.dateTo
   }
   return where.length ? `WHERE ${where.join(' AND ')}` : ''
 }
 
-async function list(resource, { page, pageSize, q, sortBy, sortDir }) {
+async function list(resource, { page, pageSize, q, sortBy, sortDir, dateFrom, dateTo }) {
   const offset = (page - 1) * pageSize
   const params = { offset, pageSize }
-  const whereSql = buildWhere(resource, q, params)
+  const whereSql = buildWhere(resource, q, params, { dateFrom, dateTo })
   const { selectSql, joins } = buildSelect(resource)
 
   const sortField = assertField(resource, sortBy) ? sortBy : resource.idField

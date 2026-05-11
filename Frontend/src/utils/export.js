@@ -33,21 +33,51 @@ export async function exportToXlsx({ fileName, sheetName, rows }) {
   XLSX.writeFile(workbook, fileName)
 }
 
-export async function exportToPdf({ fileName, title, head, body }) {
+export async function exportToPdf({ fileName, title, head, body, logoDataUrl, metaRight }) {
   const { jsPDF } = await import('jspdf')
   const autoTable = (await import('jspdf-autotable')).default
 
   const doc = new jsPDF({ orientation: 'landscape' })
-  doc.setFontSize(14)
-  doc.text(title, 14, 14)
+  const pageWidth = doc.internal.pageSize.getWidth()
+
+  // Header (corporativo)
+  const headerTop = 10
+  const headerHeight = 16
+  const leftX = 14
+  const rightX = pageWidth - 14
+
+  if (logoDataUrl) {
+    try {
+      // Logo compacto: mantener proporción visual en el header.
+      const logoMaxW = 24
+      const logoH = 10
+      doc.addImage(logoDataUrl, 'PNG', leftX, headerTop + 2, logoMaxW, logoH)
+    } catch {
+      // Si el logo falla, igual exportamos.
+    }
+  }
+
+  doc.setFontSize(15)
+  doc.setTextColor(17, 24, 39)
+  doc.text(title, logoDataUrl ? leftX + 28 : leftX, headerTop + 9)
+
+  if (metaRight) {
+    doc.setFontSize(9)
+    doc.setTextColor(71, 85, 105)
+    doc.text(String(metaRight), rightX, headerTop + 9, { align: 'right' })
+  }
+
+  doc.setDrawColor(226, 232, 240)
+  doc.setLineWidth(0.6)
+  doc.line(leftX, headerTop + headerHeight, rightX, headerTop + headerHeight)
 
   autoTable(doc, {
-    startY: 20,
+    startY: headerTop + headerHeight + 6,
     head: [head],
     body,
-    styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [43, 62, 80] },
-    alternateRowStyles: { fillColor: [248, 249, 250] },
+    styles: { fontSize: 9, cellPadding: 2, textColor: [15, 23, 42] },
+    headStyles: { fillColor: [15, 42, 74], textColor: [255, 255, 255] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
     margin: { left: 14, right: 14 },
   })
 
