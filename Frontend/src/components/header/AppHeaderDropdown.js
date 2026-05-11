@@ -14,7 +14,6 @@ import {
 import { cilAccountLogout, cilLockLocked, cilUser } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 
-import avatar8 from './../../assets/images/avatars/8.jpg'
 import { clearSession } from 'src/store/authSlice'
 import { logout } from 'src/services/authService'
 import { useToast } from 'src/components/ToastProvider'
@@ -51,7 +50,14 @@ const AppHeaderDropdown = () => {
         caret={false}
       >
         <span className="d-none d-md-inline me-2">{displayName}</span>
-        <CAvatar src={avatar8} size="md" />
+        <CAvatar
+          src={user?.photoDataUrl || undefined}
+          size="md"
+          color={user?.photoDataUrl ? undefined : 'light'}
+          textColor={user?.photoDataUrl ? undefined : 'muted'}
+        >
+          {!user?.photoDataUrl && <CIcon icon={cilUser} className="user-avatar-fallback-icon" />}
+        </CAvatar>
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" placement="bottom-end">
         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Cuenta</CDropdownHeader>

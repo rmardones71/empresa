@@ -45,6 +45,8 @@ const _nav = [
     name: 'Gestion comercial',
     to: '/commercial',
     icon: <CIcon icon={cilBriefcase} customClassName="nav-icon" />,
+    // Controlado por Matriz de permisos: "Vista Mantenedores (menu)"
+    permissionKey: 'ui.view_mantenedores',
     items: [
       {
         component: CNavItem,

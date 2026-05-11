@@ -9,6 +9,7 @@ const router = express.Router()
 router.use(authRequired)
 
 router.get('/lookups', requirePermission('commercial.contratos_empresa', 'read'), asyncHandler(controller.lookups))
+router.get('/metrics', requirePermission('commercial.contratos_empresa', 'read'), asyncHandler(controller.metrics))
 router.post('/reserve-code', requirePermission('commercial.contratos_empresa', 'create'), asyncHandler(controller.reserveCode))
 router.post('/release-code', requirePermission('commercial.contratos_empresa', 'create'), asyncHandler(controller.releaseCode))
 router.get('/', requirePermission('commercial.contratos_empresa', 'read'), asyncHandler(controller.list))

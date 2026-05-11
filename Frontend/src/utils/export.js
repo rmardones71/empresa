@@ -1,5 +1,6 @@
-export function isPrivilegedRole(role) {
-  return role === 'Super Admin' || role === 'Admin'
+export function canExportExcelPdf(user) {
+  if (user?.role === 'Super Admin') return true
+  return !!user?.permissions?.['ui.export_excel_pdf']?.read
 }
 
 function toUtcIsoStart(dateStr) {
@@ -25,11 +26,15 @@ export function buildDateRangeParams({ dateFrom, dateTo }) {
   return params
 }
 
-export async function exportToXlsx({ fileName, sheetName, rows }) {
+export async function exportToXlsx({ fileName, sheetName, rows, sheets = [] }) {
   const XLSX = await import('xlsx')
   const workbook = XLSX.utils.book_new()
-  const worksheet = XLSX.utils.json_to_sheet(rows)
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+  const baseWorksheet = XLSX.utils.json_to_sheet(rows)
+  XLSX.utils.book_append_sheet(workbook, baseWorksheet, sheetName)
+  sheets.forEach(({ sheetName: extraSheetName, rows: extraRows = [] }) => {
+    const worksheet = XLSX.utils.json_to_sheet(extraRows)
+    XLSX.utils.book_append_sheet(workbook, worksheet, extraSheetName)
+  })
   XLSX.writeFile(workbook, fileName)
 }
 

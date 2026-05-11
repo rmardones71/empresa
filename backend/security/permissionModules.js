@@ -7,6 +7,20 @@ const permissionModules = [
     sortOrder: 10,
   },
   {
+    moduleKey: 'ui.view_mantenedores',
+    moduleName: 'Vista Mantenedores (menu)',
+    moduleGroup: 'UI',
+    menuPath: null,
+    sortOrder: 50,
+  },
+  {
+    moduleKey: 'ui.export_excel_pdf',
+    moduleName: 'Excel/PDF',
+    moduleGroup: 'UI',
+    menuPath: null,
+    sortOrder: 60,
+  },
+  {
     moduleKey: 'commercial.empresas',
     moduleName: 'Empresas',
     moduleGroup: 'Gestion comercial',

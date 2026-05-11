@@ -34,7 +34,7 @@ import {
 import api from 'src/services/api'
 import UserFormModal from './UserFormModal'
 import { useToast } from 'src/components/ToastProvider'
-import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } from 'src/utils/export'
+import { buildDateRangeParams, exportToPdf, exportToXlsx, canExportExcelPdf } from 'src/utils/export'
 import { useSelector } from 'react-redux'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
@@ -89,9 +89,8 @@ const UserManagement = () => {
   const [sortDir, setSortDir] = useState('desc')
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
-  const userRole = useSelector((s) => s.auth.user?.role)
   const currentUser = useSelector((s) => s.auth.user)
-  const canExport = isPrivilegedRole(userRole)
+  const canExport = canExportExcelPdf(currentUser)
   const canCreateUsers = hasPermission(currentUser, 'admin.users', 'create')
   const canReadUsers = hasPermission(currentUser, 'admin.users', 'read')
   const canWriteUsers = hasPermission(currentUser, 'admin.users', 'write')
@@ -440,20 +439,22 @@ const UserManagement = () => {
           {canExport && (
             <>
               <CButton
+                className="toolbar-export-button"
                 color="secondary"
                 variant="outline"
                 onClick={() => openExport('xlsx')}
                 disabled={exporting || loading}
               >
-                <CIcon icon={cilCloudDownload} className="me-1" /> Excel
+                <CIcon icon={cilCloudDownload} className="me-1" /> Exportar a Excel
               </CButton>
               <CButton
+                className="toolbar-export-button"
                 color="secondary"
                 variant="outline"
                 onClick={() => openExport('pdf')}
                 disabled={exporting || loading}
               >
-                <CIcon icon={cilCloudDownload} className="me-1" /> PDF
+                <CIcon icon={cilCloudDownload} className="me-1" /> Exportar a PDF
               </CButton>
             </>
           )}

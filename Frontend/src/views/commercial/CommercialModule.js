@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CAlert,
@@ -80,9 +80,11 @@ import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
+import MacDateInput from 'src/components/MacDateInput'
 import SortableTableHeader from 'src/components/SortableTableHeader'
-import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } from 'src/utils/export'
+import { buildDateRangeParams, exportToPdf, exportToXlsx, canExportExcelPdf } from 'src/utils/export'
 import { runOnEnter } from 'src/utils/gridKeyboard'
+import { scheduleFocusFirstField, handleEnterToNextField } from 'src/utils/formNavigation'
 import { chileRegions, getCiudadesByRegion, getComunasByCity } from './chileLocations'
 import { auditFields, getFieldLabel, resourceOrder, resources } from './commercialConfig'
 import { formatRut, getRutStatus } from './rutChile'
@@ -368,7 +370,7 @@ const CommercialModule = () => {
   const canWrite = hasPermission(user, moduleKey, 'write')
   const canDelete = hasPermission(user, moduleKey, 'delete')
   const canHardDelete = resourceKey === 'contratos_empresa' ? canDelete && isSecurityAdmin(user?.role) : canDelete
-  const canExport = isPrivilegedRole(user?.role)
+  const canExport = canExportExcelPdf(user)
   const columnsStorageKey = `crm_commercial_${resourceKey}_grid_columns_v1`
 
   const [items, setItems] = useState([])
@@ -390,6 +392,13 @@ const CommercialModule = () => {
   const [exporting, setExporting] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
+
+  const formModalRef = useRef(null)
+
+  useEffect(() => {
+    if (modalMode !== 'form') return undefined
+    return scheduleFocusFirstField(() => formModalRef.current)
+  }, [modalMode, current])
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const listFields = useMemo(
@@ -1019,6 +1028,27 @@ const CommercialModule = () => {
       )
     }
 
+    if (field.type === 'date') {
+      return (
+        <MacDateInput
+          value={value ?? ''}
+          onChange={(nextValue) => setField(field.name, nextValue)}
+          disabled={disabled}
+        />
+      )
+    }
+
+    if (field.type === 'datetime-local') {
+      return (
+        <MacDateInput
+          mode="datetime-local"
+          value={value ?? ''}
+          onChange={(nextValue) => setField(field.name, nextValue)}
+          disabled={disabled}
+        />
+      )
+    }
+
     if (field.type === 'file-upload') {
       const inputId = `${resourceKey}-${field.name}-upload`
       return (
@@ -1124,22 +1154,24 @@ const CommercialModule = () => {
             {canExport && (
               <>
                 <CButton
+                  className="commercial-export-button"
                   color="secondary"
                   variant="outline"
                   onClick={() => openExport('xlsx')}
                   disabled={exporting || loading}
                 >
                   <CIcon icon={cilCloudDownload} className="me-1" />
-                  Excel
+                  Exportar a Excel
                 </CButton>
                 <CButton
+                  className="commercial-export-button"
                   color="secondary"
                   variant="outline"
                   onClick={() => openExport('pdf')}
                   disabled={exporting || loading}
                 >
                   <CIcon icon={cilCloudDownload} className="me-1" />
-                  PDF
+                  Exportar a PDF
                 </CButton>
               </>
             )}
@@ -1337,9 +1369,10 @@ const CommercialModule = () => {
             event.preventDefault()
             submit()
           }}
+          onKeyDownCapture={(event) => handleEnterToNextField(event, formModalRef.current)}
         >
           <CModalBody>
-            <div className="commercial-form-layout">
+            <div ref={formModalRef} className="commercial-form-layout">
               {getFormSections().map((section) => {
                 const sectionIcon = formIconMap[section.icon] || cilList
 

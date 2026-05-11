@@ -1,386 +1,428 @@
-import React from 'react'
-import classNames from 'classnames'
-
-import {
-  CAvatar,
-  CButton,
-  CButtonGroup,
-  CCard,
-  CCardBody,
-  CCardFooter,
-  CCardHeader,
-  CCol,
-  CProgress,
-  CRow,
-  CTable,
-  CTableBody,
-  CTableDataCell,
-  CTableHead,
-  CTableHeaderCell,
-  CTableRow,
-} from '@coreui/react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { CAlert, CCol, CProgress, CRow, CSpinner } from '@coreui/react'
+import { CChartBar, CChartLine } from '@coreui/react-chartjs'
 import CIcon from '@coreui/icons-react'
 import {
-  cibCcAmex,
-  cibCcApplePay,
-  cibCcMastercard,
-  cibCcPaypal,
-  cibCcStripe,
-  cibCcVisa,
-  cibGoogle,
-  cibFacebook,
-  cibLinkedin,
-  cifBr,
-  cifEs,
-  cifFr,
-  cifIn,
-  cifPl,
-  cifUs,
-  cibTwitter,
-  cilCloudDownload,
+  cilArrowBottom,
+  cilArrowTop,
+  cilCalendar,
+  cilChartPie,
   cilPeople,
-  cilUser,
-  cilUserFemale,
+  cilSpeedometer,
 } from '@coreui/icons'
 
-import avatar1 from 'src/assets/images/avatars/1.jpg'
-import avatar2 from 'src/assets/images/avatars/2.jpg'
-import avatar3 from 'src/assets/images/avatars/3.jpg'
-import avatar4 from 'src/assets/images/avatars/4.jpg'
-import avatar5 from 'src/assets/images/avatars/5.jpg'
-import avatar6 from 'src/assets/images/avatars/6.jpg'
+import api from 'src/services/api'
 
-import WidgetsBrand from '../widgets/WidgetsBrand'
-import WidgetsDropdown from '../widgets/WidgetsDropdown'
-import MainChart from './MainChart'
+const userPalette = [
+  { main: '#0f766e', soft: 'rgba(15, 118, 110, 0.16)' },
+  { main: '#b45309', soft: 'rgba(180, 83, 9, 0.16)' },
+  { main: '#2563eb', soft: 'rgba(37, 99, 235, 0.16)' },
+  { main: '#be123c', soft: 'rgba(190, 18, 60, 0.15)' },
+  { main: '#6d28d9', soft: 'rgba(109, 40, 217, 0.15)' },
+  { main: '#0891b2', soft: 'rgba(8, 145, 178, 0.16)' },
+  { main: '#4d7c0f', soft: 'rgba(77, 124, 15, 0.16)' },
+  { main: '#c2410c', soft: 'rgba(194, 65, 12, 0.15)' },
+  { main: '#4338ca', soft: 'rgba(67, 56, 202, 0.15)' },
+  { main: '#0f4c81', soft: 'rgba(15, 76, 129, 0.14)' },
+]
+
+const numberFormatter = new Intl.NumberFormat('es-CL')
+
+function formatNumber(value) {
+  return numberFormatter.format(Number(value || 0))
+}
+
+function formatWeekLabel(isoDate) {
+  if (!isoDate) return ''
+  const d = new Date(isoDate)
+  if (Number.isNaN(d.getTime())) return String(isoDate)
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${dd}-${mm}`
+}
+
+function formatMonthLabel(isoDate) {
+  if (!isoDate) return ''
+  const d = new Date(isoDate)
+  if (Number.isNaN(d.getTime())) return String(isoDate)
+  return d.toLocaleDateString('es-CL', { month: 'short', year: '2-digit', timeZone: 'UTC' })
+}
+
+function getUserColor(index) {
+  return userPalette[index % userPalette.length]
+}
+
+function hexToRgba(hex, alpha = 1) {
+  const normalized = String(hex || '').replace('#', '')
+  if (normalized.length !== 6) return hex
+  const red = parseInt(normalized.slice(0, 2), 16)
+  const green = parseInt(normalized.slice(2, 4), 16)
+  const blue = parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+function makeBarGradient(context) {
+  const color = getUserColor(context.dataIndex || 0)
+  const { chart } = context
+  const { chartArea, ctx } = chart
+  if (!chartArea) return color.main
+
+  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+  gradient.addColorStop(0, hexToRgba(color.main, 0.92))
+  gradient.addColorStop(0.42, hexToRgba(color.main, 0.58))
+  gradient.addColorStop(1, hexToRgba(color.main, 0.18))
+  return gradient
+}
+
+function totalRows(rows = []) {
+  return rows.reduce((sum, row) => sum + Number(row.total || 0), 0)
+}
+
+function lastValue(rows = []) {
+  return Number(rows[rows.length - 1]?.total || 0)
+}
+
+function previousValue(rows = []) {
+  return Number(rows[rows.length - 2]?.total || 0)
+}
+
+function percentageDelta(current, previous) {
+  if (!previous) return null
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+function initials(name = '') {
+  const parts = String(name)
+    .replace(/\([^)]*\)/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!parts.length) return 'SU'
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+}
+
+const chartOptions = {
+  maintainAspectRatio: false,
+  responsive: true,
+  plugins: {
+    legend: {
+      labels: {
+        boxWidth: 10,
+        boxHeight: 10,
+        color: '#25324a',
+        font: { size: 12, weight: 700 },
+        usePointStyle: true,
+      },
+    },
+    tooltip: {
+      backgroundColor: '#0b1220',
+      borderColor: 'rgba(255,255,255,0.12)',
+      borderWidth: 1,
+      padding: 12,
+      titleFont: { size: 12, weight: 800 },
+      bodyFont: { size: 12, weight: 700 },
+    },
+  },
+  scales: {
+    x: {
+      border: { display: false },
+      grid: { display: false },
+      ticks: { color: '#667085', font: { size: 11, weight: 700 }, maxRotation: 0 },
+    },
+    y: {
+      beginAtZero: true,
+      border: { display: false },
+      grid: { color: 'rgba(16, 24, 40, 0.08)' },
+      ticks: { color: '#667085', precision: 0, font: { size: 11, weight: 700 } },
+    },
+  },
+}
 
 const Dashboard = () => {
-  const progressExample = [
-    { title: 'Visits', value: '29.703 Users', percent: 40, color: 'success' },
-    { title: 'Unique', value: '24.093 Users', percent: 20, color: 'info' },
-    { title: 'Pageviews', value: '78.706 Views', percent: 60, color: 'warning' },
-    { title: 'New Users', value: '22.123 Users', percent: 80, color: 'danger' },
-    { title: 'Bounce Rate', value: 'Average Rate', percent: 40.15, color: 'primary' },
-  ]
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [metrics, setMetrics] = useState({ byUser: [], weekly: [], monthly: [] })
 
-  const progressGroupExample1 = [
-    { title: 'Monday', value1: 34, value2: 78 },
-    { title: 'Tuesday', value1: 56, value2: 94 },
-    { title: 'Wednesday', value1: 12, value2: 67 },
-    { title: 'Thursday', value1: 43, value2: 91 },
-    { title: 'Friday', value1: 22, value2: 73 },
-    { title: 'Saturday', value1: 53, value2: 82 },
-    { title: 'Sunday', value1: 9, value2: 69 },
-  ]
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError('')
+    api
+      .get('/api/contratos-empresa/metrics', { params: { weeks: 12, months: 12 } })
+      .then((res) => {
+        if (!alive) return
+        const data = res.data || {}
+        setMetrics({
+          byUser: Array.isArray(data.byUser) ? data.byUser : [],
+          weekly: Array.isArray(data.weekly) ? data.weekly : [],
+          monthly: Array.isArray(data.monthly) ? data.monthly : [],
+        })
+      })
+      .catch((e) => {
+        if (!alive) return
+        setError(e.response?.data?.message || 'No se pudieron cargar metricas')
+      })
+      .finally(() => {
+        if (!alive) return
+        setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
 
-  const progressGroupExample2 = [
-    { title: 'Male', icon: cilUser, value: 53 },
-    { title: 'Female', icon: cilUserFemale, value: 43 },
-  ]
+  const byUserTop = useMemo(() => metrics.byUser.slice(0, 10), [metrics.byUser])
+  const totalContracts = useMemo(() => totalRows(metrics.byUser), [metrics.byUser])
+  const monthlyTotal = useMemo(() => totalRows(metrics.monthly), [metrics.monthly])
+  const weeklyTotal = useMemo(() => totalRows(metrics.weekly), [metrics.weekly])
+  const currentMonth = useMemo(() => lastValue(metrics.monthly), [metrics.monthly])
+  const previousMonth = useMemo(() => previousValue(metrics.monthly), [metrics.monthly])
+  const currentWeek = useMemo(() => lastValue(metrics.weekly), [metrics.weekly])
+  const activeUsers = useMemo(
+    () => metrics.byUser.filter((row) => Number(row.total || 0) > 0).length,
+    [metrics.byUser],
+  )
+  const monthlyAverage = useMemo(
+    () => (metrics.monthly.length ? Math.round(monthlyTotal / metrics.monthly.length) : 0),
+    [metrics.monthly.length, monthlyTotal],
+  )
+  const monthDelta = percentageDelta(currentMonth, previousMonth)
+  const bestUser = byUserTop[0]
+  const maxUserTotal = Math.max(...byUserTop.map((row) => Number(row.total || 0)), 1)
 
-  const progressGroupExample3 = [
-    { title: 'Organic Search', icon: cibGoogle, percent: 56, value: '191,235' },
-    { title: 'Facebook', icon: cibFacebook, percent: 15, value: '51,223' },
-    { title: 'Twitter', icon: cibTwitter, percent: 11, value: '37,564' },
-    { title: 'LinkedIn', icon: cibLinkedin, percent: 8, value: '27,319' },
-  ]
+  const userChartData = useMemo(
+    () => ({
+      labels: byUserTop.map((r) => r.usuario || '(Sin usuario)'),
+      datasets: [
+        {
+          label: 'Contratos',
+          backgroundColor: makeBarGradient,
+          borderColor: byUserTop.map((_, index) => hexToRgba(getUserColor(index).main, 0.72)),
+          borderRadius: 14,
+          borderSkipped: false,
+          borderWidth: 1,
+          categoryPercentage: 0.68,
+          data: byUserTop.map((r) => Number(r.total || 0)),
+          hoverBackgroundColor: byUserTop.map((_, index) => getUserColor(index).main),
+          maxBarThickness: 38,
+        },
+      ],
+    }),
+    [byUserTop],
+  )
 
-  const tableExample = [
-    {
-      avatar: { src: avatar1, status: 'success' },
-      user: {
-        name: 'Yiorgos Avraamu',
-        new: true,
-        registered: 'Jan 1, 2023',
-      },
-      country: { name: 'USA', flag: cifUs },
-      usage: {
-        value: 50,
-        period: 'Jun 11, 2023 - Jul 10, 2023',
-        color: 'success',
-      },
-      payment: { name: 'Mastercard', icon: cibCcMastercard },
-      activity: '10 sec ago',
-    },
-    {
-      avatar: { src: avatar2, status: 'danger' },
-      user: {
-        name: 'Avram Tarasios',
-        new: false,
-        registered: 'Jan 1, 2023',
-      },
-      country: { name: 'Brazil', flag: cifBr },
-      usage: {
-        value: 22,
-        period: 'Jun 11, 2023 - Jul 10, 2023',
-        color: 'info',
-      },
-      payment: { name: 'Visa', icon: cibCcVisa },
-      activity: '5 minutes ago',
-    },
-    {
-      avatar: { src: avatar3, status: 'warning' },
-      user: { name: 'Quintin Ed', new: true, registered: 'Jan 1, 2023' },
-      country: { name: 'India', flag: cifIn },
-      usage: {
-        value: 74,
-        period: 'Jun 11, 2023 - Jul 10, 2023',
-        color: 'warning',
-      },
-      payment: { name: 'Stripe', icon: cibCcStripe },
-      activity: '1 hour ago',
-    },
-    {
-      avatar: { src: avatar4, status: 'secondary' },
-      user: { name: 'Enéas Kwadwo', new: true, registered: 'Jan 1, 2023' },
-      country: { name: 'France', flag: cifFr },
-      usage: {
-        value: 98,
-        period: 'Jun 11, 2023 - Jul 10, 2023',
-        color: 'danger',
-      },
-      payment: { name: 'PayPal', icon: cibCcPaypal },
-      activity: 'Last month',
-    },
-    {
-      avatar: { src: avatar5, status: 'success' },
-      user: {
-        name: 'Agapetus Tadeáš',
-        new: true,
-        registered: 'Jan 1, 2023',
-      },
-      country: { name: 'Spain', flag: cifEs },
-      usage: {
-        value: 22,
-        period: 'Jun 11, 2023 - Jul 10, 2023',
-        color: 'primary',
-      },
-      payment: { name: 'Google Wallet', icon: cibCcApplePay },
-      activity: 'Last week',
-    },
-    {
-      avatar: { src: avatar6, status: 'danger' },
-      user: {
-        name: 'Friderik Dávid',
-        new: true,
-        registered: 'Jan 1, 2023',
-      },
-      country: { name: 'Poland', flag: cifPl },
-      usage: {
-        value: 43,
-        period: 'Jun 11, 2023 - Jul 10, 2023',
-        color: 'success',
-      },
-      payment: { name: 'Amex', icon: cibCcAmex },
-      activity: 'Last week',
-    },
-  ]
+  const weeklyChartData = useMemo(
+    () => ({
+      labels: metrics.weekly.map((r) => formatWeekLabel(r.week_start)),
+      datasets: [
+        {
+          label: 'Semanal',
+          borderColor: '#0f766e',
+          backgroundColor: 'rgba(15, 118, 110, 0.12)',
+          pointBackgroundColor: '#0f766e',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          tension: 0.32,
+          fill: true,
+          data: metrics.weekly.map((r) => Number(r.total || 0)),
+        },
+      ],
+    }),
+    [metrics.weekly],
+  )
+
+  const monthlyChartData = useMemo(
+    () => ({
+      labels: metrics.monthly.map((r) => formatMonthLabel(r.month_start)),
+      datasets: [
+        {
+          label: 'Mensual',
+          borderColor: '#b45309',
+          backgroundColor: 'rgba(180, 83, 9, 0.12)',
+          pointBackgroundColor: '#b45309',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          tension: 0.28,
+          fill: true,
+          data: metrics.monthly.map((r) => Number(r.total || 0)),
+        },
+      ],
+    }),
+    [metrics.monthly],
+  )
+
+  if (loading) {
+    return (
+      <div className="dashboard-premium-loading">
+        <CSpinner size="sm" />
+        <span>Cargando dashboard ejecutivo...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <CAlert color="danger" className="dashboard-premium-alert">
+        {error}
+      </CAlert>
+    )
+  }
 
   return (
-    <>
-      <WidgetsDropdown className="mb-4" />
-      <CCard className="mb-4">
-        <CCardBody>
-          <CRow>
-            <CCol sm={5}>
-              <h4 id="traffic" className="card-title mb-0">
-                Traffic
-              </h4>
-              <div className="small text-body-secondary">January - July 2023</div>
-            </CCol>
-            <CCol sm={7} className="d-none d-md-block">
-              <CButton color="primary" className="float-end">
-                <CIcon icon={cilCloudDownload} />
-              </CButton>
-              <CButtonGroup className="float-end me-3">
-                {['Day', 'Month', 'Year'].map((value) => (
-                  <CButton
-                    color="outline-secondary"
-                    key={value}
-                    className="mx-0"
-                    active={value === 'Month'}
-                  >
-                    {value}
-                  </CButton>
-                ))}
-              </CButtonGroup>
-            </CCol>
-          </CRow>
-          <MainChart />
-        </CCardBody>
-        <CCardFooter>
-          <CRow
-            xs={{ cols: 1, gutter: 4 }}
-            sm={{ cols: 2 }}
-            lg={{ cols: 4 }}
-            xl={{ cols: 5 }}
-            className="mb-2 text-center"
-          >
-            {progressExample.map((item, index, items) => (
-              <CCol
-                className={classNames({
-                  'd-none d-xl-block': index + 1 === items.length,
-                })}
-                key={index}
-              >
-                <div className="text-body-secondary">{item.title}</div>
-                <div className="fw-semibold text-truncate">
-                  {item.value} ({item.percent}%)
-                </div>
-                <CProgress thin className="mt-2" color={item.color} value={item.percent} />
-              </CCol>
-            ))}
-          </CRow>
-        </CCardFooter>
-      </CCard>
-      <WidgetsBrand className="mb-4" withCharts />
-      <CRow>
-        <CCol xs>
-          <CCard className="mb-4">
-            <CCardHeader>Traffic {' & '} Sales</CCardHeader>
-            <CCardBody>
-              <CRow>
-                <CCol xs={12} md={6} xl={6}>
-                  <CRow>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-info py-1 px-3">
-                        <div className="text-body-secondary text-truncate small">New Clients</div>
-                        <div className="fs-5 fw-semibold">9,123</div>
-                      </div>
-                    </CCol>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-danger py-1 px-3 mb-3">
-                        <div className="text-body-secondary text-truncate small">
-                          Recurring Clients
-                        </div>
-                        <div className="fs-5 fw-semibold">22,643</div>
-                      </div>
-                    </CCol>
-                  </CRow>
-                  <hr className="mt-0" />
-                  {progressGroupExample1.map((item, index) => (
-                    <div className="progress-group mb-4" key={index}>
-                      <div className="progress-group-prepend">
-                        <span className="text-body-secondary small">{item.title}</span>
-                      </div>
-                      <div className="progress-group-bars">
-                        <CProgress thin color="info" value={item.value1} />
-                        <CProgress thin color="danger" value={item.value2} />
-                      </div>
+    <div className="dashboard-premium-page">
+      <section className="dashboard-premium-hero">
+        <div>
+          <div className="dashboard-premium-eyebrow">Gestion comercial</div>
+          <h1>Métricas del sistema</h1>
+          <p>Vista consolidada de contratos por usuario, semanas y meses.</p>
+        </div>
+        <div className="dashboard-premium-hero-metric">
+          <span>Cartera activa</span>
+          <strong>{formatNumber(totalContracts)}</strong>
+          <em>contratos empresa</em>
+        </div>
+      </section>
+
+      <div className="dashboard-premium-kpis">
+        <div className="dashboard-premium-kpi">
+          <div className="dashboard-premium-kpi-icon is-emerald">
+            <CIcon icon={cilChartPie} />
+          </div>
+          <span>Total contratos</span>
+          <strong>{formatNumber(totalContracts)}</strong>
+          <em>Registros activos</em>
+        </div>
+        <div className="dashboard-premium-kpi">
+          <div className="dashboard-premium-kpi-icon is-gold">
+            <CIcon icon={cilPeople} />
+          </div>
+          <span>Usuarios activos</span>
+          <strong>{formatNumber(activeUsers)}</strong>
+          <em>Con contratos asignados</em>
+        </div>
+        <div className="dashboard-premium-kpi">
+          <div className="dashboard-premium-kpi-icon is-blue">
+            <CIcon icon={cilCalendar} />
+          </div>
+          <span>Ultimo mes</span>
+          <strong>{formatNumber(currentMonth)}</strong>
+          <em className={monthDelta == null ? '' : monthDelta >= 0 ? 'is-positive' : 'is-negative'}>
+            {monthDelta == null ? (
+              'Sin comparativo'
+            ) : (
+              <>
+                <CIcon icon={monthDelta >= 0 ? cilArrowTop : cilArrowBottom} />
+                {Math.abs(monthDelta)}% vs mes anterior
+              </>
+            )}
+          </em>
+        </div>
+        <div className="dashboard-premium-kpi">
+          <div className="dashboard-premium-kpi-icon is-rose">
+            <CIcon icon={cilSpeedometer} />
+          </div>
+          <span>Promedio mensual</span>
+          <strong>{formatNumber(monthlyAverage)}</strong>
+          <em>{formatNumber(weeklyTotal)} contratos en 12 semanas</em>
+        </div>
+      </div>
+
+      <CRow className="g-3">
+        <CCol xl={8}>
+          <section className="dashboard-premium-panel">
+            <div className="dashboard-premium-panel-header">
+              <div>
+                <span>Distribucion por ejecutivo</span>
+                <h2>Contratos por usuario</h2>
+              </div>
+              <strong>{bestUser?.usuario || 'Sin usuarios'}</strong>
+            </div>
+            <div className="dashboard-premium-chart is-tall">
+              <CChartBar
+                data={userChartData}
+                options={{
+                  ...chartOptions,
+                  plugins: { ...chartOptions.plugins, legend: { display: false } },
+                }}
+              />
+            </div>
+          </section>
+        </CCol>
+
+        <CCol xl={4}>
+          <section className="dashboard-premium-panel dashboard-premium-ranking">
+            <div className="dashboard-premium-panel-header">
+              <div>
+                <span>Ranking</span>
+                <h2>Usuarios</h2>
+              </div>
+              <strong>{formatNumber(byUserTop.length)}</strong>
+            </div>
+            <div className="dashboard-premium-user-list">
+              {byUserTop.map((row, index) => {
+                const total = Number(row.total || 0)
+                const color = getUserColor(index)
+                return (
+                  <div className="dashboard-premium-user" key={`${row.usuario}-${index}`}>
+                    <div className="dashboard-premium-avatar" style={{ background: color.soft, color: color.main }}>
+                      {initials(row.usuario)}
                     </div>
-                  ))}
-                </CCol>
-                <CCol xs={12} md={6} xl={6}>
-                  <CRow>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-warning py-1 px-3 mb-3">
-                        <div className="text-body-secondary text-truncate small">Pageviews</div>
-                        <div className="fs-5 fw-semibold">78,623</div>
+                    <div className="dashboard-premium-user-body">
+                      <div className="dashboard-premium-user-top">
+                        <strong>{row.usuario || '(Sin usuario)'}</strong>
+                        <span>{formatNumber(total)}</span>
                       </div>
-                    </CCol>
-                    <CCol xs={6}>
-                      <div className="border-start border-start-4 border-start-success py-1 px-3 mb-3">
-                        <div className="text-body-secondary text-truncate small">Organic</div>
-                        <div className="fs-5 fw-semibold">49,123</div>
-                      </div>
-                    </CCol>
-                  </CRow>
-
-                  <hr className="mt-0" />
-
-                  {progressGroupExample2.map((item, index) => (
-                    <div className="progress-group mb-4" key={index}>
-                      <div className="progress-group-header">
-                        <CIcon className="me-2" icon={item.icon} size="lg" />
-                        <span>{item.title}</span>
-                        <span className="ms-auto fw-semibold">{item.value}%</span>
-                      </div>
-                      <div className="progress-group-bars">
-                        <CProgress thin color="warning" value={item.value} />
-                      </div>
+                      <CProgress
+                        thin
+                        value={(total / maxUserTotal) * 100}
+                        className="dashboard-premium-progress"
+                        style={{ '--dashboard-user-color': color.main }}
+                      />
                     </div>
-                  ))}
+                  </div>
+                )
+              })}
+              {!byUserTop.length && <div className="dashboard-premium-empty">Sin contratos por usuario</div>}
+            </div>
+          </section>
+        </CCol>
 
-                  <div className="mb-5"></div>
+        <CCol xl={6}>
+          <section className="dashboard-premium-panel">
+            <div className="dashboard-premium-panel-header">
+              <div>
+                <span>Ritmo operativo</span>
+                <h2>Evolucion semanal</h2>
+              </div>
+              <strong>{formatNumber(currentWeek)}</strong>
+            </div>
+            <div className="dashboard-premium-chart">
+              <CChartLine data={weeklyChartData} options={chartOptions} />
+            </div>
+          </section>
+        </CCol>
 
-                  {progressGroupExample3.map((item, index) => (
-                    <div className="progress-group" key={index}>
-                      <div className="progress-group-header">
-                        <CIcon className="me-2" icon={item.icon} size="lg" />
-                        <span>{item.title}</span>
-                        <span className="ms-auto fw-semibold">
-                          {item.value}{' '}
-                          <span className="text-body-secondary small">({item.percent}%)</span>
-                        </span>
-                      </div>
-                      <div className="progress-group-bars">
-                        <CProgress thin color="success" value={item.percent} />
-                      </div>
-                    </div>
-                  ))}
-                </CCol>
-              </CRow>
-
-              <br />
-
-              <CTable align="middle" className="mb-0 border" hover responsive>
-                <CTableHead className="text-nowrap">
-                  <CTableRow>
-                    <CTableHeaderCell className="bg-body-tertiary text-center">
-                      <CIcon icon={cilPeople} />
-                    </CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary">User</CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary text-center">
-                      Country
-                    </CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary">Usage</CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary text-center">
-                      Payment Method
-                    </CTableHeaderCell>
-                    <CTableHeaderCell className="bg-body-tertiary">Activity</CTableHeaderCell>
-                  </CTableRow>
-                </CTableHead>
-                <CTableBody>
-                  {tableExample.map((item, index) => (
-                    <CTableRow v-for="item in tableItems" key={index}>
-                      <CTableDataCell className="text-center">
-                        <CAvatar size="md" src={item.avatar.src} status={item.avatar.status} />
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div>{item.user.name}</div>
-                        <div className="small text-body-secondary text-nowrap">
-                          <span>{item.user.new ? 'New' : 'Recurring'}</span> | Registered:{' '}
-                          {item.user.registered}
-                        </div>
-                      </CTableDataCell>
-                      <CTableDataCell className="text-center">
-                        <CIcon size="xl" icon={item.country.flag} title={item.country.name} />
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div className="d-flex justify-content-between text-nowrap">
-                          <div className="fw-semibold">{item.usage.value}%</div>
-                          <div className="ms-3">
-                            <small className="text-body-secondary">{item.usage.period}</small>
-                          </div>
-                        </div>
-                        <CProgress thin color={item.usage.color} value={item.usage.value} />
-                      </CTableDataCell>
-                      <CTableDataCell className="text-center">
-                        <CIcon size="xl" icon={item.payment.icon} />
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div className="small text-body-secondary text-nowrap">Last login</div>
-                        <div className="fw-semibold text-nowrap">{item.activity}</div>
-                      </CTableDataCell>
-                    </CTableRow>
-                  ))}
-                </CTableBody>
-              </CTable>
-            </CCardBody>
-          </CCard>
+        <CCol xl={6}>
+          <section className="dashboard-premium-panel">
+            <div className="dashboard-premium-panel-header">
+              <div>
+                <span>Tendencia ejecutiva</span>
+                <h2>Evolucion mensual</h2>
+              </div>
+              <strong>{formatNumber(monthlyTotal)}</strong>
+            </div>
+            <div className="dashboard-premium-chart">
+              <CChartLine data={monthlyChartData} options={chartOptions} />
+            </div>
+          </section>
         </CCol>
       </CRow>
-    </>
+    </div>
   )
 }
 

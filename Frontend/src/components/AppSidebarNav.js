@@ -12,9 +12,20 @@ import { hasPermission } from 'src/utils/permissions'
 export const AppSidebarNav = ({ items }) => {
   const user = useSelector((s) => s.auth.user)
 
+  const isHiddenForRole = (item) => {
+    const role = (user?.role || '').toString().trim().toLowerCase()
+    const hidden = (item?.hideForRoles || item?.menuHiddenForRoles || [])
+      .map((r) => (r || '').toString().trim().toLowerCase())
+      .filter(Boolean)
+    return hidden.includes(role)
+  }
+
   const isAllowed = (item) => {
-    if (item?.items?.length) return item.items.some(isAllowed)
-    return hasPermission(user, item?.permissionKey, 'read')
+    if (isHiddenForRole(item)) return false
+
+    const selfAllowed = item?.permissionKey ? hasPermission(user, item.permissionKey, 'read') : true
+    if (item?.items?.length) return selfAllowed && item.items.some(isAllowed)
+    return selfAllowed
   }
   const navLink = (name, icon, badge, indent = false) => {
     return (

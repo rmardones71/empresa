@@ -18,10 +18,10 @@ const LABELS = {
 }
 
 const DELAYS = {
-  success: 3000,
-  info: 5000,
-  warning: 7000,
-  error: 10000,
+  success: 1500,
+  info: 1500,
+  warning: 1500,
+  error: 1500,
 }
 
 export const ToastProvider = ({ children }) => {
@@ -33,7 +33,7 @@ export const ToastProvider = ({ children }) => {
       <CToast
         visible
         autohide
-        delay={DELAYS[t.kind] || 2800}
+        delay={DELAYS[t.kind] || 1500}
         className={`app-toast app-toast-${t.kind}`}
         key={id}
       >

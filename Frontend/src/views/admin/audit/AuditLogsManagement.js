@@ -20,7 +20,7 @@ import { cilCloudDownload, cilNotes } from '@coreui/icons'
 import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
 import GridColumnPicker from 'src/components/GridColumnPicker'
-import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } from 'src/utils/export'
+import { buildDateRangeParams, exportToPdf, exportToXlsx, canExportExcelPdf } from 'src/utils/export'
 import { useSelector } from 'react-redux'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
@@ -118,8 +118,8 @@ const AuditLogsManagement = () => {
     }
   }
 
-  const role = useSelector((s) => s.auth.user?.role)
-  const canExport = isPrivilegedRole(role)
+  const user = useSelector((s) => s.auth.user)
+  const canExport = canExportExcelPdf(user)
 
   const fetchAll = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
     const pageSizeAll = 100
@@ -249,20 +249,22 @@ const AuditLogsManagement = () => {
           {canExport && (
             <>
               <CButton
+                className="toolbar-export-button"
                 color="secondary"
                 variant="outline"
                 onClick={() => openExport('xlsx')}
                 disabled={exporting || loading}
               >
-                <CIcon icon={cilCloudDownload} className="me-1" /> Excel
+                <CIcon icon={cilCloudDownload} className="me-1" /> Exportar a Excel
               </CButton>
               <CButton
+                className="toolbar-export-button"
                 color="secondary"
                 variant="outline"
                 onClick={() => openExport('pdf')}
                 disabled={exporting || loading}
               >
-                <CIcon icon={cilCloudDownload} className="me-1" /> PDF
+                <CIcon icon={cilCloudDownload} className="me-1" /> Exportar a PDF
               </CButton>
             </>
           )}

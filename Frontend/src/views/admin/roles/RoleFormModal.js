@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   CButton,
   CForm,
@@ -12,8 +12,10 @@ import {
   CModalTitle,
 } from '@coreui/react'
 import { useForm } from 'react-hook-form'
+import { scheduleFocusFirstField, handleEnterToNextField } from 'src/utils/formNavigation'
 
 const RoleFormModal = ({ visible, onClose, onSubmit, submitting, initialValues }) => {
+  const formRef = useRef(null)
   const { register, handleSubmit, reset } = useForm({
     defaultValues: {
       roleName: '',
@@ -30,6 +32,11 @@ const RoleFormModal = ({ visible, onClose, onSubmit, submitting, initialValues }
     }
   }, [visible, reset, initialValues])
 
+  useEffect(() => {
+    if (!visible) return undefined
+    return scheduleFocusFirstField(() => formRef.current)
+  }, [visible, initialValues])
+
   const isEdit = !!initialValues?.roleId
 
   return (
@@ -37,12 +44,15 @@ const RoleFormModal = ({ visible, onClose, onSubmit, submitting, initialValues }
       <CModalHeader>
         <CModalTitle>{isEdit ? 'Editar rol' : 'Nuevo rol'}</CModalTitle>
       </CModalHeader>
-      <CForm onSubmit={handleSubmit(onSubmit)}>
+      <CForm
+        ref={formRef}
+        onSubmit={handleSubmit(onSubmit)}
+        onKeyDownCapture={(event) => handleEnterToNextField(event, formRef.current)}
+      >
         <CModalBody>
           <div className="mb-3">
             <CFormLabel>Nombre del rol</CFormLabel>
             <CFormInput
-              autoFocus
               placeholder="Ej: Admin, Ventas, Supervisor"
               {...register('roleName')}
               required

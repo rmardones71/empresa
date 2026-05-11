@@ -89,6 +89,15 @@ function parseId(raw) {
 
 function castField(field, value) {
   if (value === undefined) return undefined
+  if (booleanFields.has(field)) {
+    if (value === null || value === '') return false
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      if (['true', '1', 'si', 'sí', 'yes', 'on'].includes(normalized)) return true
+      if (['false', '0', 'no', 'off'].includes(normalized)) return false
+    }
+    return !!value
+  }
   if (value === null || value === '') return null
   if (intFields.has(field)) {
     const number = Number(value)
@@ -98,7 +107,6 @@ function castField(field, value) {
     const number = Number(value)
     return Number.isFinite(number) ? number : null
   }
-  if (booleanFields.has(field)) return !!value
   if (dateFields.has(field)) {
     const date = new Date(String(value))
     return Number.isNaN(date.getTime()) ? null : String(value).slice(0, 10)
@@ -106,10 +114,16 @@ function castField(field, value) {
   return String(value).trim()
 }
 
-function buildPayload(body) {
+function buildPayload(body, { existing = null } = {}) {
   const payload = {}
   for (const field of mainFields) {
-    if (body[field] !== undefined) payload[field] = castField(field, body[field])
+    if (body[field] !== undefined) {
+      payload[field] = castField(field, body[field])
+    } else if (existing) {
+      payload[field] = castField(field, existing[field])
+    } else {
+      payload[field] = booleanFields.has(field) ? false : null
+    }
   }
 
   const errors = requiredFields
@@ -140,6 +154,10 @@ function escapeLike(value) {
 
 function normalizeRutSearch(value) {
   return normalizeSearchText(value).replace(/[^0-9kK]/g, '').toUpperCase()
+}
+
+function normalizeCodeSearch(value) {
+  return normalizeSearchText(value).replace(/\D/g, '')
 }
 
 function stringifyChangeValue(value) {
@@ -304,7 +322,7 @@ async function reserveCode(actor = {}) {
     DECLARE @lockReservas INT;
     DECLARE @nextNumeroContratoEmpresa INT;
     DECLARE @nextCodigoContratoEmpresa NVARCHAR(12);
-    DECLARE @existingReservaId INT;
+    DECLARE @baseNumeroContratoEmpresa INT;
 
     SELECT @lockContratos = COUNT(1)
     FROM dbo.contratos_empresa WITH (TABLOCKX, HOLDLOCK);
@@ -312,46 +330,24 @@ async function reserveCode(actor = {}) {
     SELECT @lockReservas = COUNT(1)
     FROM dbo.contrato_empresa_codigo_reservas WITH (TABLOCKX, HOLDLOCK);
 
-    SELECT TOP 1
-      @existingReservaId = id,
-      @nextNumeroContratoEmpresa = numero_contrato_empresa,
-      @nextCodigoContratoEmpresa = codigo_contrato_empresa
-    FROM dbo.contrato_empresa_codigo_reservas
-    WHERE (user_id = @user_id OR (user_id IS NULL AND @user_id IS NULL))
-    ORDER BY numero_contrato_empresa ASC;
+    DELETE FROM dbo.contrato_empresa_codigo_reservas
+    WHERE (user_id = @user_id OR (user_id IS NULL AND @user_id IS NULL));
 
-    IF @existingReservaId IS NOT NULL
-    BEGIN
-      DELETE FROM dbo.contrato_empresa_codigo_reservas
-      WHERE (user_id = @user_id OR (user_id IS NULL AND @user_id IS NULL))
-        AND id <> @existingReservaId;
-
-      COMMIT;
-
-      SELECT
-        @nextNumeroContratoEmpresa AS numero_contrato_empresa,
-        @nextCodigoContratoEmpresa AS codigo_contrato_empresa;
-      RETURN;
-    END
-
-    ;WITH candidates AS (
-      SELECT TOP (100000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS numero
-      FROM sys.all_objects a
-      CROSS JOIN sys.all_objects b
-    ),
-    used_numbers AS (
-      SELECT numero_contrato_empresa AS numero
-      FROM dbo.contratos_empresa
-      WHERE numero_contrato_empresa IS NOT NULL
-      UNION
-      SELECT numero_contrato_empresa
-      FROM dbo.contrato_empresa_codigo_reservas
+    ;WITH used_numbers AS (
+      SELECT MAX(numero) AS max_numero
+      FROM (
+        SELECT numero_contrato_empresa AS numero
+        FROM dbo.contratos_empresa
+        WHERE numero_contrato_empresa IS NOT NULL
+        UNION ALL
+        SELECT numero_contrato_empresa
+        FROM dbo.contrato_empresa_codigo_reservas
+      ) used_numbers
     )
-    SELECT TOP 1 @nextNumeroContratoEmpresa = candidates.numero
-    FROM candidates
-    LEFT JOIN used_numbers ON used_numbers.numero = candidates.numero
-    WHERE used_numbers.numero IS NULL
-    ORDER BY candidates.numero ASC;
+    SELECT @baseNumeroContratoEmpresa = ISNULL(max_numero, 0)
+    FROM used_numbers;
+
+    SET @nextNumeroContratoEmpresa = ISNULL(@baseNumeroContratoEmpresa, 0) + 1;
 
     IF @nextNumeroContratoEmpresa IS NULL
     BEGIN
@@ -446,6 +442,108 @@ function selectSql() {
   `
 }
 
+async function create(body, actor = {}) {
+  await ensureSchema()
+  const payload = buildPayload(body)
+  const reserved = parseContractCode(body.codigo_contrato_empresa)
+  const params = {
+    ...payload,
+    created_by: actor.userId ?? null,
+    updated_by: actor.userId ?? null,
+    numero_contrato_empresa: reserved?.number ?? null,
+    codigo_contrato_empresa: reserved?.code ?? null,
+  }
+
+  const fields = [
+    'numero_contrato_empresa',
+    'codigo_contrato_empresa',
+    ...mainFields,
+    'created_by',
+    'updated_by',
+  ]
+  const result = await query(
+    `
+    SET XACT_ABORT ON;
+    BEGIN TRAN;
+
+    DECLARE @lockContratos INT;
+    DECLARE @lockReservas INT;
+    DECLARE @nextNumeroContratoEmpresa INT = @numero_contrato_empresa;
+    DECLARE @nextCodigoContratoEmpresa NVARCHAR(12) = @codigo_contrato_empresa;
+    DECLARE @baseNumeroContratoEmpresa INT;
+
+    SELECT @lockContratos = COUNT(1)
+    FROM dbo.contratos_empresa WITH (TABLOCKX, HOLDLOCK);
+
+    SELECT @lockReservas = COUNT(1)
+    FROM dbo.contrato_empresa_codigo_reservas WITH (TABLOCKX, HOLDLOCK);
+
+    IF @nextNumeroContratoEmpresa IS NOT NULL AND @nextCodigoContratoEmpresa IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.contrato_empresa_codigo_reservas
+        WHERE numero_contrato_empresa = @nextNumeroContratoEmpresa
+          AND codigo_contrato_empresa = @nextCodigoContratoEmpresa
+          AND (user_id = @created_by OR user_id IS NULL OR @created_by IS NULL)
+      )
+    BEGIN
+      SET @nextNumeroContratoEmpresa = NULL;
+      SET @nextCodigoContratoEmpresa = NULL;
+    END
+
+    IF @nextNumeroContratoEmpresa IS NULL OR @nextCodigoContratoEmpresa IS NULL
+    BEGIN
+      ;WITH used_numbers AS (
+        SELECT MAX(numero) AS max_numero
+        FROM (
+          SELECT numero_contrato_empresa AS numero
+          FROM dbo.contratos_empresa
+          WHERE numero_contrato_empresa IS NOT NULL
+          UNION ALL
+          SELECT numero_contrato_empresa
+          FROM dbo.contrato_empresa_codigo_reservas
+        ) used_numbers
+      )
+      SELECT @baseNumeroContratoEmpresa = ISNULL(max_numero, 0)
+      FROM used_numbers;
+
+      SET @nextNumeroContratoEmpresa = ISNULL(@baseNumeroContratoEmpresa, 0) + 1;
+      SET @nextCodigoContratoEmpresa = CONCAT('CEMP', RIGHT(CONCAT('00000000', @nextNumeroContratoEmpresa), 8));
+    END
+
+    DELETE FROM dbo.contrato_empresa_codigo_reservas
+    WHERE numero_contrato_empresa = @nextNumeroContratoEmpresa
+      AND codigo_contrato_empresa = @nextCodigoContratoEmpresa
+      AND (user_id = @created_by OR user_id IS NULL OR @created_by IS NULL);
+
+    INSERT INTO dbo.contratos_empresa (${fields.join(', ')})
+    OUTPUT INSERTED.id
+    VALUES (${fields
+      .map((field) => {
+        if (field === 'numero_contrato_empresa') return '@nextNumeroContratoEmpresa'
+        if (field === 'codigo_contrato_empresa') return '@nextCodigoContratoEmpresa'
+        return `@${field}`
+      })
+      .join(', ')})
+
+    COMMIT;
+    `,
+    params,
+  )
+  const id = result.recordset[0]?.id
+  await syncAssociations(id, 'lineas', body.lineas || [], actor)
+  await syncAssociations(id, 'casos', body.casos || [], actor)
+  await syncAssociations(id, 'documentos', body.documentos || [], actor)
+  const created = await get(id)
+  await logChange(
+    id,
+    'CREATE',
+    [{ field: null, oldValue: null, newValue: created }],
+    actor,
+  )
+  return created
+}
+
 function joinsSql() {
   return `
     INNER JOIN dbo.empresa emp ON emp.rut = ce.rut_empresa
@@ -467,6 +565,7 @@ async function list({
   page = 1,
   pageSize = 20,
   q = '',
+  searchMode = '',
   sortBy = 'id',
   sortDir = 'desc',
   dateFrom = '',
@@ -492,16 +591,30 @@ async function list({
   const searchText = normalizeSearchText(q)
   if (searchText) {
     const rutText = normalizeRutSearch(searchText)
-    const searchParts = [
-      `CONVERT(NVARCHAR(30), ce.id) LIKE @q ESCAPE '~'`,
-      `ce.codigo_contrato_empresa COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
-      `ce.titulo COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
-      `emp.razon_social COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
-      `emp.rut COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
-      `co.nombre COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
-      `ectr.estado_ctr COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
-    ]
+    const codeText = normalizeCodeSearch(searchText)
+    const headerMode = String(searchMode).toLowerCase() === 'header'
+    const searchParts = headerMode
+      ? [
+          `ce.codigo_contrato_empresa COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `emp.razon_social COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `emp.rut COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+        ]
+      : [
+          `ce.codigo_contrato_empresa COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `ce.titulo COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `emp.razon_social COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `emp.rut COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `co.nombre COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+          `ectr.estado_ctr COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
+        ]
     params.q = `%${escapeLike(searchText)}%`
+    if (codeText) {
+      searchParts.push(
+        `ce.codigo_contrato_empresa COLLATE Latin1_General_100_CI_AI LIKE @qCode ESCAPE '~'`,
+        `RIGHT(CONCAT('00000000', CONVERT(NVARCHAR(20), ce.numero_contrato_empresa)), 8) LIKE @qCode ESCAPE '~'`,
+      )
+      params.qCode = `%${escapeLike(codeText)}%`
+    }
     if (rutText) {
       searchParts.push(
         `REPLACE(REPLACE(REPLACE(UPPER(emp.rut), '.', ''), '-', ''), ' ', '') LIKE @qRut ESCAPE '~'`,
@@ -542,6 +655,78 @@ async function list({
     params,
   )
   return { page: safePage, pageSize: safePageSize, total: Number(totalResult.recordset[0]?.Total || 0), items: result.recordset }
+}
+
+async function metrics({ weeks = 12, months = 12 } = {}) {
+  await ensureSchema()
+  const safeWeeks = Math.min(26, Math.max(4, Number(weeks || 12)))
+  const safeMonths = Math.min(24, Math.max(3, Number(months || 12)))
+
+  const byUser = await query(
+    `
+    SELECT
+      ce.created_by AS user_id,
+      COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(u.FirstName, ' ', u.LastName))), ''), u.Username, u.Email, '(Sin usuario)') AS usuario,
+      COUNT(1) AS total
+    FROM dbo.contratos_empresa ce
+    LEFT JOIN dbo.Users u ON u.UserId = ce.created_by
+    WHERE ce.activo = 1
+    GROUP BY ce.created_by, u.FirstName, u.LastName, u.Username, u.Email
+    ORDER BY total DESC
+    `,
+  )
+
+  const weekly = await query(
+    `
+    ;WITH w AS (
+      SELECT TOP (@weeks)
+        DATEADD(DAY, -7 * (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), CAST(SYSUTCDATETIME() AS DATE)) AS week_start
+      FROM sys.all_objects
+    )
+    SELECT
+      w.week_start,
+      COUNT(ce.id) AS total
+    FROM w
+    LEFT JOIN dbo.contratos_empresa ce
+      ON ce.created_at >= w.week_start
+     AND ce.created_at < DATEADD(DAY, 7, w.week_start)
+     AND ce.activo = 1
+    GROUP BY w.week_start
+    ORDER BY w.week_start ASC
+    `,
+    { weeks: safeWeeks },
+  )
+
+  const monthly = await query(
+    `
+    ;WITH m AS (
+      SELECT TOP (@months)
+        DATEFROMPARTS(
+          YEAR(DATEADD(MONTH, -(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), SYSUTCDATETIME())),
+          MONTH(DATEADD(MONTH, -(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), SYSUTCDATETIME())),
+          1
+        ) AS month_start
+      FROM sys.all_objects
+    )
+    SELECT
+      m.month_start,
+      COUNT(ce.id) AS total
+    FROM m
+    LEFT JOIN dbo.contratos_empresa ce
+      ON ce.created_at >= m.month_start
+     AND ce.created_at < DATEADD(MONTH, 1, m.month_start)
+     AND ce.activo = 1
+    GROUP BY m.month_start
+    ORDER BY m.month_start ASC
+    `,
+    { months: safeMonths },
+  )
+
+  return {
+    byUser: byUser.recordset,
+    weekly: weekly.recordset,
+    monthly: monthly.recordset,
+  }
 }
 
 async function getBase(id) {
@@ -621,121 +806,13 @@ async function get(id) {
   }
 }
 
-async function create(body, actor = {}) {
-  await ensureSchema()
-  const payload = buildPayload(body)
-  const reserved = parseContractCode(body.codigo_contrato_empresa)
-  const params = {
-    ...payload,
-    created_by: actor.userId ?? null,
-    updated_by: actor.userId ?? null,
-    numero_contrato_empresa: reserved?.number ?? null,
-    codigo_contrato_empresa: reserved?.code ?? null,
-  }
-
-  if (reserved) {
-    const reservation = await query(
-      `
-      SELECT TOP 1 id
-      FROM dbo.contrato_empresa_codigo_reservas
-      WHERE numero_contrato_empresa = @numero_contrato_empresa
-        AND codigo_contrato_empresa = @codigo_contrato_empresa
-        AND (user_id = @created_by OR user_id IS NULL OR @created_by IS NULL)
-      `,
-      params,
-    )
-    if (!reservation.recordset[0]) {
-      throw httpError(400, 'Codigo de contrato no reservado o expirado', 'VALIDATION')
-    }
-  }
-
-  const fields = [
-    'numero_contrato_empresa',
-    'codigo_contrato_empresa',
-    ...mainFields,
-    'created_by',
-    'updated_by',
-  ]
-  const result = await query(
-    `
-    SET XACT_ABORT ON;
-    BEGIN TRAN;
-
-    DECLARE @lockContratos INT;
-    DECLARE @lockReservas INT;
-    DECLARE @nextNumeroContratoEmpresa INT = @numero_contrato_empresa;
-    DECLARE @nextCodigoContratoEmpresa NVARCHAR(12) = @codigo_contrato_empresa;
-
-    SELECT @lockContratos = COUNT(1)
-    FROM dbo.contratos_empresa WITH (TABLOCKX, HOLDLOCK);
-
-    SELECT @lockReservas = COUNT(1)
-    FROM dbo.contrato_empresa_codigo_reservas WITH (TABLOCKX, HOLDLOCK);
-
-    IF @nextNumeroContratoEmpresa IS NULL OR @nextCodigoContratoEmpresa IS NULL
-    BEGIN
-      ;WITH candidates AS (
-        SELECT TOP (100000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS numero
-        FROM sys.all_objects a
-        CROSS JOIN sys.all_objects b
-      ),
-      used_numbers AS (
-        SELECT numero_contrato_empresa AS numero
-        FROM dbo.contratos_empresa
-        WHERE numero_contrato_empresa IS NOT NULL
-        UNION
-        SELECT numero_contrato_empresa
-        FROM dbo.contrato_empresa_codigo_reservas
-      )
-      SELECT TOP 1 @nextNumeroContratoEmpresa = candidates.numero
-      FROM candidates
-      LEFT JOIN used_numbers ON used_numbers.numero = candidates.numero
-      WHERE used_numbers.numero IS NULL
-      ORDER BY candidates.numero ASC;
-
-      SET @nextCodigoContratoEmpresa = CONCAT('CEMP', RIGHT(CONCAT('00000000', @nextNumeroContratoEmpresa), 8));
-    END
-
-    DELETE FROM dbo.contrato_empresa_codigo_reservas
-    WHERE numero_contrato_empresa = @nextNumeroContratoEmpresa
-      AND codigo_contrato_empresa = @nextCodigoContratoEmpresa
-      AND (user_id = @created_by OR user_id IS NULL OR @created_by IS NULL);
-
-    INSERT INTO dbo.contratos_empresa (${fields.join(', ')})
-    OUTPUT INSERTED.id
-    VALUES (${fields
-      .map((field) => {
-        if (field === 'numero_contrato_empresa') return '@nextNumeroContratoEmpresa'
-        if (field === 'codigo_contrato_empresa') return '@nextCodigoContratoEmpresa'
-        return `@${field}`
-      })
-      .join(', ')})
-
-    COMMIT;
-    `,
-    params,
-  )
-  const id = result.recordset[0]?.id
-  await syncAssociations(id, 'lineas', body.lineas || [], actor)
-  await syncAssociations(id, 'casos', body.casos || [], actor)
-  await syncAssociations(id, 'documentos', body.documentos || [], actor)
-  const created = await get(id)
-  await logChange(
-    id,
-    'CREATE',
-    [{ field: null, oldValue: null, newValue: created }],
-    actor,
-  )
-  return created
-}
-
 async function update(id, body, actor = {}) {
   await ensureSchema()
   const parsedId = parseId(id)
   if (!parsedId) throw httpError(400, 'Identificador invalido', 'VALIDATION')
   const existing = await getBase(parsedId)
   if (!existing) throw httpError(404, 'Contrato empresa no encontrado', 'NOT_FOUND')
-  const payload = buildPayload(body)
+  const payload = buildPayload(body, { existing })
   const params = { ...payload, id: parsedId, updated_by: actor.userId ?? null }
   await query(
     `
@@ -812,6 +889,9 @@ async function addAssociation(contractId, type, targetId, actor = {}) {
     `SELECT TOP 1 id FROM ${config.table} WHERE contrato_empresa_id = @contractId AND ${config.idField} = @targetId`,
     { contractId: parsedContractId, targetId: parsedTargetId },
   )
+  if (existing.recordset[0]) {
+    throw httpError(409, 'El registro ya esta asociado a este contrato empresa', 'RELATED_RECORDS')
+  }
   await query(
     `
     UPDATE ${config.targetTable}
@@ -846,13 +926,27 @@ async function addAssociation(contractId, type, targetId, actor = {}) {
 }
 
 async function removeAssociation(contractId, type, targetId, actor = {}) {
-  const { contractId: parsedContractId, targetId: parsedTargetId, config } = await ensureParentAndTarget(contractId, type, targetId)
+  const { contractId: parsedContractId, targetId: parsedTargetId, config } = await ensureParentAndTarget(
+    contractId,
+    type,
+    targetId,
+  )
   const existing = await query(
     `SELECT TOP 1 id FROM ${config.table} WHERE contrato_empresa_id = @contractId AND ${config.idField} = @targetId`,
     { contractId: parsedContractId, targetId: parsedTargetId },
   )
   await query(
     `DELETE FROM ${config.table} WHERE contrato_empresa_id = @contractId AND ${config.idField} = @targetId`,
+    { contractId: parsedContractId, targetId: parsedTargetId },
+  )
+  // Libera el registro para que pueda asociarse a otro contrato empresa.
+  await query(
+    `
+    UPDATE ${config.targetTable}
+    SET contrato_empresa_id = NULL
+    WHERE ${config.targetId} = @targetId
+      AND contrato_empresa_id = @contractId
+    `,
     { contractId: parsedContractId, targetId: parsedTargetId },
   )
   if (existing.recordset[0]) {
@@ -898,6 +992,24 @@ async function syncAssociations(contractId, type, values, actor = {}) {
   const previousIds = previous.recordset.map((row) => Number(row.id)).filter(Boolean)
   const previousSet = new Set(previousIds)
   const nextSet = new Set(ids)
+
+  // Libera registros que ya no estaran asociados.
+  const removedIds = previousIds.filter((targetId) => !nextSet.has(targetId))
+  if (removedIds.length) {
+    await query(
+      `
+      UPDATE ${config.targetTable}
+      SET contrato_empresa_id = NULL
+      WHERE contrato_empresa_id = @contractId
+        AND ${config.targetId} IN (${removedIds.map((_, index) => `@removedId${index}`).join(', ')})
+      `,
+      removedIds.reduce(
+        (params, targetId, index) => ({ ...params, [`removedId${index}`]: targetId }),
+        { contractId },
+      ),
+    )
+  }
+
   await query(`DELETE FROM ${config.table} WHERE contrato_empresa_id = @contractId`, { contractId })
   for (const targetId of ids) {
     // eslint-disable-next-line no-await-in-loop
@@ -998,9 +1110,24 @@ async function lookups() {
     lookupRows('dbo.estado_contacto', 'id_estado_contacto', 'estado_contacto'),
     lookupRows('dbo.frecuencia_facturacion', 'id_frecuencia', 'frecuencia'),
     lookupRows('dbo.tipo_tarifa', 'id_tipo_tarifa', 'tipo_tarifa'),
-    query('SELECT id_linea AS id, titulo AS label, contrato_empresa_id FROM dbo.linea ORDER BY titulo ASC'),
-    query('SELECT id_caso AS id, titulo AS label, id_contacto, contrato_empresa_id, adjuntos FROM dbo.caso ORDER BY titulo ASC'),
-    query('SELECT id_documento AS id, nombre AS label, contrato_empresa_id FROM dbo.documentos ORDER BY nombre ASC'),
+    query(`
+      SELECT id_linea AS id, titulo AS label, contrato_empresa_id
+      FROM dbo.linea
+      WHERE contrato_empresa_id IS NULL
+      ORDER BY titulo ASC
+    `),
+    query(`
+      SELECT id_caso AS id, titulo AS label, id_contacto, contrato_empresa_id, adjuntos
+      FROM dbo.caso
+      WHERE contrato_empresa_id IS NULL
+      ORDER BY titulo ASC
+    `),
+    query(`
+      SELECT id_documento AS id, nombre AS label, contrato_empresa_id
+      FROM dbo.documentos
+      WHERE contrato_empresa_id IS NULL
+      ORDER BY nombre ASC
+    `),
   ])
 
   return {
@@ -1026,6 +1153,7 @@ module.exports = {
   create,
   get,
   list,
+  metrics,
   lookups,
   releaseCode,
   remove,

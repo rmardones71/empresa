@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   CButton,
   CForm,
@@ -13,9 +13,10 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCalendar, cilCloudDownload, cilList } from '@coreui/icons'
+import MacDateInput from './MacDateInput'
 
-const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
-  const [mode, setMode] = useState('all') // all | range
+const ExportModal = ({ visible, onClose, onConfirm, submitting, format, canExportCurrent = false }) => {
+  const [mode, setMode] = useState('all') // all | current | range
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
@@ -32,14 +33,21 @@ const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
 
   const doConfirm = () => {
     const allRecords = mode === 'all'
+    const currentRecord = mode === 'current'
     onConfirm({
+      scope: mode,
       allRecords,
-      dateFrom: allRecords ? '' : dateFrom,
-      dateTo: allRecords ? '' : dateTo,
+      currentRecord,
+      dateFrom: mode === 'range' ? dateFrom : '',
+      dateTo: mode === 'range' ? dateTo : '',
       format,
     })
     resetForm()
   }
+
+  useEffect(() => {
+    if (!canExportCurrent && mode === 'current') setMode('all')
+  }, [canExportCurrent, mode])
 
   const title = format === 'pdf' ? 'Exportar a PDF' : 'Exportar a Excel'
 
@@ -65,13 +73,25 @@ const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
             </CFormLabel>
             <div className="export-mode-options">
               <CFormCheck
+                id="export-mode-all"
                 type="radio"
                 name="exportMode"
                 label="Todos los registros"
                 checked={mode === 'all'}
                 onChange={() => setMode('all')}
               />
+              {canExportCurrent && (
+                <CFormCheck
+                  id="export-mode-current"
+                  type="radio"
+                  name="exportMode"
+                  label="Contrato actual"
+                  checked={mode === 'current'}
+                  onChange={() => setMode('current')}
+                />
+              )}
               <CFormCheck
+                id="export-mode-range"
                 type="radio"
                 name="exportMode"
                 label="Rango de fechas"
@@ -88,10 +108,9 @@ const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
                   <CIcon icon={cilCalendar} />
                   <span>Fecha inicio</span>
                 </CFormLabel>
-                <CFormInput
-                  type="date"
+                <MacDateInput
                   value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
+                  onChange={setDateFrom}
                   disabled={mode !== 'range'}
                 />
               </div>
@@ -100,10 +119,9 @@ const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
                   <CIcon icon={cilCalendar} />
                   <span>Fecha termino</span>
                 </CFormLabel>
-                <CFormInput
-                  type="date"
+                <MacDateInput
                   value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
+                  onChange={setDateTo}
                   disabled={mode !== 'range'}
                 />
               </div>

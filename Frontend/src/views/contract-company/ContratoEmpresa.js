@@ -38,6 +38,7 @@ import {
   cilDescription,
   cilEnvelopeClosed,
   cilFile,
+  cilLink,
   cilList,
   cilMoney,
   cilNotes,
@@ -55,10 +56,11 @@ import api from 'src/services/api'
 import { useToast } from 'src/components/ToastProvider'
 import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
+import MacDateInput from 'src/components/MacDateInput'
 import SortableTableHeader from 'src/components/SortableTableHeader'
-import { buildDateRangeParams, exportToPdf, exportToXlsx, isPrivilegedRole } from 'src/utils/export'
-import { runOnEnter } from 'src/utils/gridKeyboard'
+import { buildDateRangeParams, exportToPdf, exportToXlsx, canExportExcelPdf } from 'src/utils/export'
 import { hasPermission, isSecurityAdmin } from 'src/utils/permissions'
+import { scheduleFocusFirstField, handleEnterToNextField } from 'src/utils/formNavigation'
 import logoUcm from 'src/assets/images/brand/logo-ucm.png'
 import { formatRut, getRutStatus } from 'src/views/commercial/rutChile'
 import {
@@ -170,9 +172,14 @@ const requiredFields = [
 ]
 
 const contractFieldLayoutStorageKey = 'contract-company-field-layout'
+const legacyFieldLayoutAliases = {
+  company: {
+    categoria: 'rut_empresa_detalle',
+  },
+}
 
 const defaultContractFieldLayout = {
-  company: ['empresa', 'categoria'],
+  company: ['empresa', 'rut_empresa_detalle'],
   contract: [
     'titulo',
     'tipo_servicio',
@@ -193,7 +200,10 @@ const defaultContractFieldLayout = {
 
 function normalizeFieldLayout(layout = {}) {
   return Object.entries(defaultContractFieldLayout).reduce((acc, [section, defaults]) => {
-    const saved = Array.isArray(layout[section]) ? layout[section] : []
+    const aliases = legacyFieldLayoutAliases[section] || {}
+    const saved = Array.isArray(layout[section])
+      ? layout[section].map((field) => aliases[field] || field)
+      : []
     const validSaved = saved.filter((field) => defaults.includes(field))
     const missing = defaults.filter((field) => !validSaved.includes(field))
     acc[section] = [...validSaved, ...missing]
@@ -219,6 +229,48 @@ function moveFieldInSection(layout, section, fromField, toField) {
   const [moved] = next.splice(fromIndex, 1)
   next.splice(toIndex, 0, moved)
   return { ...layout, [section]: next }
+}
+
+function normalizeRutForCompare(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/\./g, '')
+    .replace(/-/g, '')
+    .replace(/\s+/g, '')
+}
+
+function normalizeTextForSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function scoreCompanyHeaderMatch(item, rawQuery) {
+  const textQuery = normalizeTextForSearch(rawQuery)
+  const rutQuery = normalizeRutForCompare(rawQuery)
+  const razonSocial = normalizeTextForSearch(item?.razon_social)
+  const nombreFantasia = normalizeTextForSearch(item?.nombre_fantasia)
+  const rut = normalizeRutForCompare(item?.rut)
+
+  let score = -1
+  if (rutQuery && rut.includes(rutQuery)) score = Math.max(score, rut === rutQuery ? 600 : 500)
+  if (textQuery && razonSocial.startsWith(textQuery)) score = Math.max(score, 400)
+  else if (textQuery && razonSocial.includes(textQuery)) score = Math.max(score, 300)
+  if (textQuery && nombreFantasia.startsWith(textQuery)) score = Math.max(score, 250)
+  else if (textQuery && nombreFantasia.includes(textQuery)) score = Math.max(score, 200)
+
+  return score
+}
+
+function filterCompanyHeaderMatches(items = [], rawQuery) {
+  return [...items]
+    .map((item) => ({ item, score: scoreCompanyHeaderMatch(item, rawQuery) }))
+    .filter(({ score }) => score >= 0)
+    .sort((a, b) => b.score - a.score || String(a.item?.razon_social || '').localeCompare(String(b.item?.razon_social || ''), 'es'))
+    .map(({ item }) => item)
 }
 
 const relatedConfig = {
@@ -316,6 +368,40 @@ const contractExportColumns = [
   ['updated_at', 'Fecha actualizacion'],
 ]
 
+const contractLineExportColumns = [
+  ['codigo_contrato_empresa', 'Codigo contrato'],
+  ['contrato', 'Contrato'],
+  ['titulo', 'Titulo linea'],
+  ['tipo_servicio', 'Servicio'],
+  ['tipo_tarifa', 'Tarifa'],
+  ['frecuencia', 'Frecuencia'],
+  ['divisa', 'Divisa'],
+  ['tarifa_fija', 'Tarifa fija'],
+  ['tarifa_variable', 'Tarifa variable'],
+  ['moneda_fijo', 'Moneda fijo'],
+  ['moneda_variable', 'Moneda variable'],
+]
+
+const contractCaseExportColumns = [
+  ['codigo_contrato_empresa', 'Codigo contrato'],
+  ['contrato', 'Contrato'],
+  ['titulo', 'Titulo caso'],
+  ['contacto', 'Contacto'],
+  ['texto', 'Texto'],
+  ['relato', 'Relato'],
+  ['adjuntos', 'Archivo'],
+]
+
+const contractDocumentExportColumns = [
+  ['codigo_contrato_empresa', 'Codigo contrato'],
+  ['contrato', 'Contrato'],
+  ['nombre', 'Nombre'],
+  ['tipo_documento', 'Tipo documento'],
+  ['version', 'Version'],
+  ['estado', 'Estado'],
+  ['responsable', 'Responsable'],
+]
+
 function getLookupLabel(options = [], value) {
   const option = options.find((item) => String(item.id) === String(value))
   return option?.label || '-'
@@ -323,6 +409,10 @@ function getLookupLabel(options = [], value) {
 
 function normalizeSearchQuery(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120)
+}
+
+function getContractSearchBadge(item) {
+  return item?.codigo_contrato_empresa || `#${item?.id || '-'}`
 }
 
 function getAttachmentUrl(value) {
@@ -559,7 +649,6 @@ const SearchableLookupField = ({
         <CFormInput
           ref={inputRef}
           value={isOpen ? query : selectedOption?.label || query}
-          onFocus={openMenu}
           onClick={openMenu}
           onChange={(event) => {
             const nextValue = event.target.value
@@ -652,6 +741,322 @@ const ContractSection = ({ title, icon, children, className = '' }) => (
   </section>
 )
 
+const ContractHeaderSearch = ({ disabled = false, onSelect, onSelectCompany }) => {
+  const [term, setTerm] = useState('')
+  const [results, setResults] = useState([])
+  const [status, setStatus] = useState('idle')
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const containerRef = useRef(null)
+  const requestRef = useRef(0)
+  const abortRef = useRef(null)
+  const debounceRef = useRef(null)
+  const lastQueryRef = useRef('')
+  const selectingRef = useRef(false)
+  const termRef = useRef('')
+
+  const cleanTerm = normalizeSearchQuery(term)
+  termRef.current = cleanTerm
+  const canShowResults =
+    open &&
+    !!cleanTerm &&
+    lastQueryRef.current === cleanTerm &&
+    ['ready', 'empty', 'error'].includes(status)
+
+  const clearPendingSearch = () => {
+    if (!debounceRef.current) return
+    window.clearTimeout(debounceRef.current)
+    debounceRef.current = null
+  }
+
+  const resetSearch = ({ clearInput = false } = {}) => {
+    clearPendingSearch()
+    requestRef.current += 1
+    abortRef.current?.abort()
+    abortRef.current = null
+    lastQueryRef.current = ''
+    setOpen(false)
+    setResults([])
+    setStatus('idle')
+    setActiveIndex(-1)
+    if (clearInput) {
+      termRef.current = ''
+      setTerm('')
+    }
+  }
+
+  const executeSearch = async (rawQuery, { openResults = true } = {}) => {
+    const query = normalizeSearchQuery(rawQuery)
+    if (!query) {
+      resetSearch()
+      return []
+    }
+    if (selectingRef.current || termRef.current !== query) return []
+
+    const requestId = requestRef.current + 1
+    requestRef.current = requestId
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setStatus('loading')
+    setOpen(false)
+    setResults([])
+    setActiveIndex(-1)
+
+    try {
+      const res = await api.get('/api/contratos-empresa', {
+        signal: controller.signal,
+        params: {
+          page: 1,
+          pageSize: 8,
+          q: query,
+          searchMode: 'header',
+          sortBy: 'updated_at',
+          sortDir: 'desc',
+        },
+      })
+      if (
+        requestRef.current !== requestId ||
+        selectingRef.current ||
+        termRef.current !== query
+      ) {
+        return []
+      }
+      const nextResults = res.data.items || []
+      let finalResults = nextResults
+      if (!finalResults.length && onSelectCompany) {
+        const companyRes = await api.get('/api/commercial/empresas', {
+          signal: controller.signal,
+          params: {
+            page: 1,
+            pageSize: 6,
+            q: query,
+            sortBy: 'rut',
+            sortDir: 'asc',
+          },
+        })
+        if (requestRef.current !== requestId || selectingRef.current || termRef.current !== query) {
+          return []
+        }
+        const matchedCompanies = filterCompanyHeaderMatches(companyRes.data.items || [], query)
+        finalResults = matchedCompanies.map((item) => ({
+          ...item,
+          id: `empresa:${item.rut}`,
+          searchKind: 'company',
+        }))
+      }
+      lastQueryRef.current = query
+      setResults(finalResults)
+      setStatus(finalResults.length ? 'ready' : 'empty')
+      setActiveIndex(finalResults.length ? 0 : -1)
+      setOpen(openResults)
+      return finalResults
+    } catch (error) {
+      if (
+        requestRef.current !== requestId ||
+        termRef.current !== query ||
+        error?.code === 'ERR_CANCELED'
+      ) {
+        return []
+      }
+      lastQueryRef.current = query
+      setResults([])
+      setStatus('error')
+      setOpen(openResults)
+      return []
+    }
+  }
+
+  useEffect(() => {
+    if (selectingRef.current || disabled) {
+      resetSearch()
+      return undefined
+    }
+
+    const query = normalizeSearchQuery(term)
+    if (!query) {
+      resetSearch()
+      return undefined
+    }
+
+    clearPendingSearch()
+    requestRef.current += 1
+    abortRef.current?.abort()
+    lastQueryRef.current = ''
+    setOpen(false)
+    setResults([])
+    setStatus('idle')
+    setActiveIndex(-1)
+
+    const timeoutId = window.setTimeout(() => {
+      debounceRef.current = null
+      executeSearch(query).catch(() => {})
+    }, 260)
+    debounceRef.current = timeoutId
+
+    return () => {
+      if (debounceRef.current === timeoutId) debounceRef.current = null
+      window.clearTimeout(timeoutId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [term, disabled])
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [])
+
+  const selectResult = async (item) => {
+    if ((!item?.id && !item?.rut) || selectingRef.current) return
+    selectingRef.current = true
+    clearPendingSearch()
+    requestRef.current += 1
+    abortRef.current?.abort()
+    setOpen(false)
+    setResults([])
+    setStatus('idle')
+    setActiveIndex(-1)
+    try {
+      if (item.searchKind === 'company') await onSelectCompany?.(item)
+      else await onSelect?.(item)
+    } finally {
+      lastQueryRef.current = ''
+      termRef.current = ''
+      setTerm('')
+      selectingRef.current = false
+    }
+  }
+
+  const pickResult = (event, item) => {
+    event.preventDefault()
+    event.stopPropagation()
+    selectResult(item)
+  }
+
+  const submitSearch = async () => {
+    if (!cleanTerm || disabled) return
+    clearPendingSearch()
+    if (lastQueryRef.current === cleanTerm && results.length === 1) {
+      await selectResult(results[0])
+      return
+    }
+    const nextResults = await executeSearch(cleanTerm)
+    if (nextResults.length === 1) await selectResult(nextResults[0])
+  }
+
+  const moveActive = (delta) => {
+    if (!results.length) return
+    setOpen(true)
+    setActiveIndex((prev) => {
+      const current = prev < 0 ? 0 : prev
+      return Math.min(results.length - 1, Math.max(0, current + delta))
+    })
+  }
+
+  return (
+    <div className="contract-company-header-search" ref={containerRef}>
+      <div className="contract-company-search">
+        <CIcon icon={cilSearch} />
+        <CFormInput
+          value={term}
+          onChange={(event) => {
+            setTerm(event.target.value)
+            setOpen(false)
+          }}
+          onFocus={() => {
+            if (lastQueryRef.current === cleanTerm && results.length) setOpen(true)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              moveActive(1)
+              return
+            }
+            if (event.key === 'ArrowUp') {
+              event.preventDefault()
+              moveActive(-1)
+              return
+            }
+            if (event.key === 'Escape') {
+              setOpen(false)
+              return
+            }
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              const selected = activeIndex >= 0 ? results[activeIndex] : null
+              if (selected && lastQueryRef.current === cleanTerm) {
+                selectResult(selected)
+                return
+              }
+              submitSearch()
+            }
+          }}
+          placeholder="Buscar por codigo contrato, RUT empresa o razon social..."
+          disabled={disabled}
+        />
+        {term && (
+          <CButton
+            className="contract-header-button"
+            type="button"
+            onClick={() => resetSearch({ clearInput: true })}
+            disabled={disabled}
+          >
+            <CIcon icon={cilX} />
+          </CButton>
+        )}
+        <CButton
+          className="contract-header-button contract-header-button-search"
+          type="button"
+          onClick={submitSearch}
+          disabled={disabled}
+        >
+          <CIcon icon={cilSearch} />
+        </CButton>
+      </div>
+      {canShowResults && (
+        <div className="contract-search-results">
+          {status === 'empty' && (
+            <div className="contract-search-result">
+              <span>0</span>
+              <strong>Sin resultados</strong>
+              <em>Prueba con otro texto</em>
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="contract-search-result">
+              <span>!</span>
+              <strong>No se pudo buscar</strong>
+              <em>Intenta nuevamente</em>
+            </div>
+          )}
+          {results.slice(0, 6).map((item, index) => (
+            <button
+              type="button"
+              key={item.id}
+              className={`contract-search-result ${activeIndex === index ? 'is-keyboard-active' : ''}`}
+              onMouseEnter={() => setActiveIndex(index)}
+              onPointerDown={(event) => pickResult(event, item)}
+              onMouseDown={(event) => pickResult(event, item)}
+              onClick={(event) => pickResult(event, item)}
+            >
+              <span>{item.searchKind === 'company' ? 'EMP' : getContractSearchBadge(item)}</span>
+              <strong>{item.searchKind === 'company' ? item.razon_social : item.titulo}</strong>
+              <em>
+                {item.searchKind === 'company'
+                  ? `${formatRut(item.rut)} · Empresa sin contrato`
+                  : item.empresa}
+              </em>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ContratoEmpresa = () => {
   const toast = useToast()
   const navigate = useNavigate()
@@ -662,7 +1067,7 @@ const ContratoEmpresa = () => {
   const canWrite = hasPermission(user, moduleKey, 'write')
   const canDelete = hasPermission(user, moduleKey, 'delete')
   const canHardDelete = canDelete && isSecurityAdmin(user?.role)
-  const canExport = isPrivilegedRole(user?.role)
+  const canExport = canExportExcelPdf(user)
   const canReorderFields = isSecurityAdmin(user?.role)
   const canCreateEmpresa = hasPermission(user, 'commercial.empresas', 'create')
   const canCreateContacto = hasPermission(user, 'commercial.contactos', 'create')
@@ -677,7 +1082,6 @@ const ContratoEmpresa = () => {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [q, setQ] = useState('')
   const [sortBy, setSortBy] = useState('id')
   const [sortDir, setSortDir] = useState('desc')
   const [lookups, setLookups] = useState({})
@@ -706,10 +1110,6 @@ const ContratoEmpresa = () => {
   const [documentoEditingId, setDocumentoEditingId] = useState(null)
   const [documentoSaving, setDocumentoSaving] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [searchStatus, setSearchStatus] = useState('idle')
-  const [headerSearchResults, setHeaderSearchResults] = useState([])
-  const [showHeaderSearchResults, setShowHeaderSearchResults] = useState(false)
-  const [activeHeaderSearchIndex, setActiveHeaderSearchIndex] = useState(-1)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
@@ -717,17 +1117,42 @@ const ContratoEmpresa = () => {
   const [draftCreatedAt, setDraftCreatedAt] = useState(() => new Date().toISOString())
   const [fieldLayout, setFieldLayout] = useState(readStoredFieldLayout)
   const [draggingField, setDraggingField] = useState(null)
+  const [loadingRecordId, setLoadingRecordId] = useState('')
   const reservedContractCodeRef = useRef('')
-  const headerSearchRef = useRef(null)
-  const headerSearchRequestRef = useRef(0)
+  const reserveRequestRef = useRef(0)
+  const recordLoadRequestRef = useRef(0)
+  const recordLoadingRef = useRef(false)
+  const pendingUrlSyncRef = useRef('')
+  const resettingRecordRef = useRef(false)
   const exportLogoRef = useRef(null)
+  const empresaModalRef = useRef(null)
+  const empresaRutInputRef = useRef(null)
+  const contractTitleInputRef = useRef(null)
+  const contactoModalRef = useRef(null)
+  const lineaModalRef = useRef(null)
+  const casoModalRef = useRef(null)
+  const documentoModalRef = useRef(null)
   const openRecordId = searchParams.get('open')
+  const currentIdRef = useRef('')
+  const openRecordIdRef = useRef('')
+  currentIdRef.current = current?.id ? String(current.id) : ''
+  openRecordIdRef.current = openRecordId ? String(openRecordId) : ''
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
   const empresaRutStatus = useMemo(
     () => getRutStatus(empresaForm.rut, { required: true }),
     [empresaForm.rut],
   )
+  const empresaRutDuplicate = useMemo(() => {
+    if (empresaEditingId) return null
+    if (empresaRutStatus !== 'valid') return null
+    const rutNorm = normalizeRutForCompare(empresaForm.rut)
+    if (!rutNorm) return null
+    const match = (lookups.empresas || []).find(
+      (item) => normalizeRutForCompare(item?.id) === rutNorm,
+    )
+    return match || null
+  }, [empresaEditingId, empresaForm.rut, empresaRutStatus, lookups.empresas])
   const ciudadesEmpresa = useMemo(() => getCiudadesByRegion(empresaForm.region), [empresaForm.region])
   const comunasEmpresa = useMemo(
     () => getComunasByCity(empresaForm.region, empresaForm.ciudad),
@@ -736,6 +1161,22 @@ const ContratoEmpresa = () => {
   const contactoRutStatus = useMemo(
     () => getRutStatus(contactoForm.rut, { required: false }),
     [contactoForm.rut],
+  )
+  const contactoRutDuplicate = useMemo(() => {
+    if (!contactoForm.rut) return null
+    if (contactoRutStatus !== 'valid') return null
+    const rutNorm = normalizeRutForCompare(contactoForm.rut)
+    if (!rutNorm) return null
+    const match = (lookups.contactos || []).find((item) => {
+      if (!item?.rut) return false
+      if (contactoEditingId && String(item.id) === String(contactoEditingId)) return false
+      return normalizeRutForCompare(item.rut) === rutNorm
+    })
+    return match || null
+  }, [contactoEditingId, contactoForm.rut, contactoRutStatus, lookups.contactos])
+  const selectedEmpresa = useMemo(
+    () => (lookups.empresas || []).find((item) => String(item.id) === String(form.rut_empresa)),
+    [form.rut_empresa, lookups.empresas],
   )
   const selectedContacto = useMemo(
     () => (lookups.contactos || []).find((item) => String(item.id) === String(form.id_contacto)),
@@ -747,55 +1188,83 @@ const ContratoEmpresa = () => {
   }, [fieldLayout])
 
   useEffect(() => {
-    const handlePointerDown = (event) => {
-      if (!headerSearchRef.current?.contains(event.target)) setShowHeaderSearchResults(false)
+    if (!showEmpresaModal) return undefined
+    const cancel = scheduleFocusFirstField(() => empresaModalRef.current, {
+      attempts: 60,
+      intervalMs: 50,
+    })
+
+    // CoreUI modal activates a focus-trap after the enter transition.
+    // Reinforce focus to the first real field once everything is mounted/visible.
+    const timeoutId = window.setTimeout(() => {
+      const container = empresaModalRef.current
+      if (!container) return
+      const active = document.activeElement
+      if (active && container.contains(active)) return
+
+      const rutInput = empresaRutInputRef.current
+      if (rutInput && !rutInput.disabled) {
+        try {
+          rutInput.focus({ preventScroll: true })
+          rutInput.select?.()
+        } catch {
+          // ignore
+        }
+      }
+    }, 200)
+
+    return () => {
+      cancel?.()
+      window.clearTimeout(timeoutId)
     }
-    document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
-  }, [])
+  }, [showEmpresaModal, empresaEditingId])
 
   useEffect(() => {
-    if (!canRead) return undefined
-    const searchText = normalizeSearchQuery(q)
-    const requestId = headerSearchRequestRef.current + 1
-    headerSearchRequestRef.current = requestId
+    if (!showContactoModal) return undefined
+    return scheduleFocusFirstField(() => contactoModalRef.current)
+  }, [showContactoModal, contactoEditingId])
 
-    if (!searchText) {
-      setSearchStatus('idle')
-      setHeaderSearchResults([])
-      setShowHeaderSearchResults(false)
-      setActiveHeaderSearchIndex(-1)
-      return undefined
+  useEffect(() => {
+    if (!showLineaModal) return undefined
+    return scheduleFocusFirstField(() => lineaModalRef.current)
+  }, [showLineaModal, lineaEditingId])
+
+  useEffect(() => {
+    if (!showCasoModal) return undefined
+    return scheduleFocusFirstField(() => casoModalRef.current)
+  }, [showCasoModal, casoEditingId])
+
+  useEffect(() => {
+    if (!showDocumentoModal) return undefined
+    return scheduleFocusFirstField(() => documentoModalRef.current)
+  }, [showDocumentoModal, documentoEditingId])
+
+  const scheduleFocusContractTitle = ({ attempts = 24, intervalMs = 50 } = {}) => {
+    let cancelled = false
+    let remaining = Math.max(1, Number(attempts) || 1)
+
+    const tick = () => {
+      if (cancelled) return
+      const input = contractTitleInputRef.current
+      if (input && !input.disabled && document.contains(input)) {
+        try {
+          input.focus({ preventScroll: true })
+          input.select?.()
+          return
+        } catch {
+          // ignore
+        }
+      }
+      remaining -= 1
+      if (remaining <= 0) return
+      window.setTimeout(tick, intervalMs)
     }
 
-    setSearchStatus('loading')
-    setShowHeaderSearchResults(true)
-    setActiveHeaderSearchIndex(-1)
-
-    const timeoutId = window.setTimeout(async () => {
-      try {
-        const res = await api.get('/api/contratos-empresa', {
-          params: {
-            page: 1,
-            pageSize: 8,
-            q: searchText,
-            sortBy: 'updated_at',
-            sortDir: 'desc',
-          },
-        })
-        if (headerSearchRequestRef.current !== requestId) return
-        const results = res.data.items || []
-        setHeaderSearchResults(results)
-        setSearchStatus(results.length ? 'results' : 'empty')
-      } catch (error) {
-        if (headerSearchRequestRef.current !== requestId) return
-        setHeaderSearchResults([])
-        setSearchStatus('error')
-      }
-    }, 320)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [canRead, q])
+    window.setTimeout(tick, 0)
+    return () => {
+      cancelled = true
+    }
+  }
 
   const loadLookups = async () => {
     const res = await api.get('/api/contratos-empresa/lookups')
@@ -812,7 +1281,7 @@ const ContratoEmpresa = () => {
   const loadList = async ({ pageOverride, qOverride } = {}) => {
     setLoading(true)
     try {
-      const searchText = normalizeSearchQuery(qOverride ?? q)
+      const searchText = normalizeSearchQuery(qOverride ?? '')
       const res = await api.get('/api/contratos-empresa', {
         params: {
           page: pageOverride ?? page,
@@ -832,11 +1301,12 @@ const ContratoEmpresa = () => {
   }
 
   const releaseReservedContractCode = async (code = reservedContractCodeRef.current) => {
-    if (!code) return
-    reservedContractCodeRef.current = ''
+    const codeToRelease = code
+    if (!codeToRelease) return
+    if (reservedContractCodeRef.current === codeToRelease) reservedContractCodeRef.current = ''
     try {
       await api.post('/api/contratos-empresa/release-code', {
-        codigo_contrato_empresa: code,
+        codigo_contrato_empresa: codeToRelease,
       })
     } catch (error) {
       // La liberacion es preventiva; no bloquea el trabajo del usuario si falla.
@@ -844,11 +1314,28 @@ const ContratoEmpresa = () => {
   }
 
   const reserveContractCode = async ({ force = false } = {}) => {
-    if (!canCreate || (!force && current?.id) || reservedContractCodeRef.current) return
+    if (
+      !canCreate ||
+      recordLoadingRef.current ||
+      reservedContractCodeRef.current
+    ) {
+      return
+    }
+    if (!force && (currentIdRef.current || openRecordIdRef.current)) return
+    const requestId = reserveRequestRef.current + 1
+    reserveRequestRef.current = requestId
     try {
       const res = await api.post('/api/contratos-empresa/reserve-code')
       const code = res.data?.codigo_contrato_empresa || ''
       if (!code) return
+      if (
+        reserveRequestRef.current !== requestId ||
+        recordLoadingRef.current ||
+        (!force && (currentIdRef.current || openRecordIdRef.current))
+      ) {
+        await releaseReservedContractCode(code)
+        return
+      }
       reservedContractCodeRef.current = code
       setForm((prev) => ({
         ...prev,
@@ -880,13 +1367,28 @@ const ContratoEmpresa = () => {
   useEffect(() => {
     if (!canRead) return undefined
     const recordId = openRecordId
+    if (resettingRecordRef.current) {
+      if (!recordId) resettingRecordRef.current = false
+      return undefined
+    }
+    if (loadingRecordId) {
+      if (String(recordId || '') === loadingRecordId && String(current?.id || '') === loadingRecordId) {
+        pendingUrlSyncRef.current = ''
+        setLoadingRecordId('')
+      }
+      return undefined
+    }
     if (!recordId || String(current?.id) === String(recordId)) return undefined
+    if (pendingUrlSyncRef.current === String(recordId)) {
+      pendingUrlSyncRef.current = ''
+      if (String(current?.id) === String(recordId)) return undefined
+    }
     const timeoutId = window.setTimeout(() => {
-      loadRecord(recordId)
+      loadRecord(recordId, { syncUrl: false })
     }, 0)
     return () => window.clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canRead, openRecordId, current?.id])
+  }, [canRead, openRecordId, current?.id, loadingRecordId])
 
   useEffect(() => {
     if (!canRead || !canCreate || current?.id || form.codigo_contrato_empresa) return undefined
@@ -897,6 +1399,12 @@ const ContratoEmpresa = () => {
     return () => window.clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canRead, canCreate, current?.id, form.codigo_contrato_empresa, lookups.estados_ctr, openRecordId])
+
+  useEffect(() => {
+    if (!canCreate || current?.id || openRecordId) return undefined
+    return scheduleFocusContractTitle()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canCreate, current?.id, openRecordId])
 
   useEffect(
     () => () => {
@@ -929,8 +1437,14 @@ const ContratoEmpresa = () => {
   }
 
   const resetForm = async ({ reserve = true } = {}) => {
-    await releaseReservedContractCode()
-    setSearchParams({}, { replace: true })
+    const codeToRelease = reservedContractCodeRef.current
+    resettingRecordRef.current = true
+    recordLoadRequestRef.current += 1
+    reserveRequestRef.current += 1
+    recordLoadingRef.current = false
+    pendingUrlSyncRef.current = ''
+    setLoadingRecordId('')
+    setLoading(false)
     setCurrent(null)
     setDraftCreatedAt(new Date().toISOString())
     setForm({
@@ -939,7 +1453,19 @@ const ContratoEmpresa = () => {
     })
     setRelated({ lineas: [], casos: [], documentos: [] })
     setSelectedRelated({ lineas: '', casos: '', documentos: '' })
+    setSearchParams({}, { replace: true })
+    scheduleFocusContractTitle()
+    if (codeToRelease) releaseReservedContractCode(codeToRelease).catch(() => {})
     if (reserve) window.setTimeout(() => reserveContractCode({ force: true }), 0)
+  }
+
+  const selectCompanyForDraft = async (empresa) => {
+    if (!empresa?.rut || !canCreate) return
+    const effectiveLookups = await loadLookups()
+    await resetForm()
+    setField('rut_empresa', empresa.rut, effectiveLookups)
+    if (empresa.id_categoria) setField('id_categoria', String(empresa.id_categoria), effectiveLookups)
+    toast.info('Empresa cargada para un nuevo contrato')
   }
 
   const openEmpresaModal = (suggestedName = '') => {
@@ -1048,14 +1574,15 @@ const ContratoEmpresa = () => {
     iva: row.iva === undefined || row.iva === null ? true : !!row.iva,
   })
 
-  const openLineaModal = () => {
+  const openLineaModal = (suggestedTitle = '') => {
     if (!canCreateLinea) return
+    const suggested = String(suggestedTitle || '').trim()
     const contratoId = current?.id || ''
     setLineaEditingId(null)
     setLineaForm({
       ...emptyLineaForm,
       contrato_empresa_id: contratoId ? String(contratoId) : '',
-      titulo: form.titulo ? `Linea ${form.titulo}` : '',
+      titulo: suggested || (form.titulo ? `Linea ${form.titulo}` : ''),
       id_tipo_servicio: form.id_tipo_servicio || '',
       id_tipo_tarifa: form.id_tipo_tarifa || '',
       id_frecuencia: form.id_frecuencia || '',
@@ -1095,14 +1622,15 @@ const ContratoEmpresa = () => {
     adjuntos: row.adjuntos || '',
   })
 
-  const openCasoModal = () => {
+  const openCasoModal = (suggestedTitle = '') => {
     if (!canCreateCaso) return
+    const suggested = String(suggestedTitle || '').trim()
     setCasoEditingId(null)
     setCasoForm({
       ...emptyCasoForm,
       id_contacto: form.id_contacto || '',
       contrato_empresa_id: current?.id ? String(current.id) : '',
-      titulo: form.titulo ? `Caso ${form.titulo}` : '',
+      titulo: suggested || (form.titulo ? `Caso ${form.titulo}` : ''),
     })
     setShowCasoModal(true)
   }
@@ -1139,12 +1667,14 @@ const ContratoEmpresa = () => {
     estado: row.estado || '',
   })
 
-  const openDocumentoModal = () => {
+  const openDocumentoModal = (suggestedName = '') => {
     if (!canCreateDocumento) return
+    const suggested = String(suggestedName || '').trim()
     setDocumentoEditingId(null)
     setDocumentoForm({
       ...emptyDocumentoForm,
       contrato_empresa_id: current?.id ? String(current.id) : '',
+      nombre: suggested,
     })
     setShowDocumentoModal(true)
   }
@@ -1254,6 +1784,10 @@ const ContratoEmpresa = () => {
       toast.error('El RUT de la empresa no es valido')
       return
     }
+    if (empresaRutDuplicate) {
+      toast.error(`RUT empresa ya existe: ${empresaRutDuplicate.id}.`)
+      return
+    }
 
     setEmpresaSaving(true)
     try {
@@ -1266,7 +1800,30 @@ const ContratoEmpresa = () => {
         : await api.post('/api/commercial/empresas', payload)
       const selectedRut = String(empresaEditingId || res.data?.rut || payload.rut)
       const freshLookups = await loadLookups()
-      setField('rut_empresa', selectedRut, freshLookups)
+
+      // Asegura que la empresa recien creada/actualizada exista en los lookups
+      // para que el selector muestre el valor inmediatamente (sin requerir blur/click afuera).
+      const fallbackEmpresa = {
+        id: selectedRut,
+        label: payload.razon_social || selectedRut,
+        id_categoria: payload.id_categoria ? Number(payload.id_categoria) : undefined,
+        giro: payload.giro || '',
+        rubro: payload.rubro || '',
+        direccion: payload.direccion || '',
+        ciudad: payload.ciudad || '',
+        comuna: payload.comuna || '',
+      }
+
+      const prevEmpresas = Array.isArray(freshLookups.empresas) ? freshLookups.empresas : []
+      const idx = prevEmpresas.findIndex((item) => String(item.id) === String(selectedRut))
+      const nextEmpresas = [...prevEmpresas]
+      if (idx >= 0) nextEmpresas[idx] = { ...nextEmpresas[idx], ...fallbackEmpresa }
+      else nextEmpresas.push(fallbackEmpresa)
+      nextEmpresas.sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'es'))
+
+      const effectiveLookups = { ...freshLookups, empresas: nextEmpresas }
+      setLookups(effectiveLookups)
+      setField('rut_empresa', selectedRut, effectiveLookups)
       setShowEmpresaModal(false)
       setEmpresaEditingId(null)
       toast.success(
@@ -1293,6 +1850,10 @@ const ContratoEmpresa = () => {
       toast.error('El RUT del contacto no es valido')
       return
     }
+    if (contactoRutDuplicate) {
+      toast.error(`RUT contacto ya existe: ${contactoRutDuplicate.rut}.`)
+      return
+    }
 
     setContactoSaving(true)
     try {
@@ -1309,7 +1870,28 @@ const ContratoEmpresa = () => {
         : await api.post('/api/commercial/contactos', payload)
       const selectedId = String(contactoEditingId || res.data?.id_contacto || res.data?.id || '')
       const freshLookups = await loadLookups()
-      setField('id_contacto', selectedId, freshLookups)
+
+      const fallbackContacto = {
+        id: selectedId,
+        label: payload.nombre || `Contacto ${selectedId}`,
+        id_tipo_contacto: payload.id_tipo_contacto ? Number(payload.id_tipo_contacto) : undefined,
+        id_estado_contacto: payload.id_estado_contacto ? Number(payload.id_estado_contacto) : undefined,
+        rut: payload.rut || '',
+        email: payload.email || '',
+        telefono: payload.telefono || '',
+        autoriza_comunicaciones: !!payload.autoriza_comunicaciones,
+      }
+
+      const prevContactos = Array.isArray(freshLookups.contactos) ? freshLookups.contactos : []
+      const idx = prevContactos.findIndex((item) => String(item.id) === String(selectedId))
+      const nextContactos = [...prevContactos]
+      if (idx >= 0) nextContactos[idx] = { ...nextContactos[idx], ...fallbackContacto }
+      else nextContactos.push(fallbackContacto)
+      nextContactos.sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'es'))
+
+      const effectiveLookups = { ...freshLookups, contactos: nextContactos }
+      setLookups(effectiveLookups)
+      setField('id_contacto', selectedId, effectiveLookups)
       setShowContactoModal(false)
       setContactoEditingId(null)
       toast.success(
@@ -1493,13 +2075,25 @@ const ContratoEmpresa = () => {
     }
   }
 
-  const loadRecord = async (id) => {
+  const loadRecord = async (id, { syncUrl = true } = {}) => {
+    const recordId = String(id || '').trim()
+    if (!recordId) return
+    resettingRecordRef.current = false
+    const requestId = recordLoadRequestRef.current + 1
+    recordLoadRequestRef.current = requestId
+    recordLoadingRef.current = true
+    reserveRequestRef.current += 1
+    setLoadingRecordId(recordId)
+    setLoading(true)
+    let keepLoadingRecordId = false
     try {
-      await releaseReservedContractCode()
-      const res = await api.get(`/api/contratos-empresa/${id}`)
+      const draftCode = reservedContractCodeRef.current
+      if (draftCode) releaseReservedContractCode(draftCode).catch(() => {})
+      const res = await api.get(`/api/contratos-empresa/${recordId}`)
+      if (recordLoadRequestRef.current !== requestId) return
       const data = res.data
+      const nextId = String(data.id || recordId)
       setCurrent(data)
-      setSearchParams({ open: String(data.id || id) }, { replace: true })
       setDraftCreatedAt(data.created_at || new Date().toISOString())
       setForm({
         rut_empresa: data.rut_empresa || '',
@@ -1529,8 +2123,20 @@ const ContratoEmpresa = () => {
         casos: data.casos || [],
         documentos: data.documentos || [],
       })
+      if (syncUrl && openRecordIdRef.current !== nextId) {
+        keepLoadingRecordId = true
+        pendingUrlSyncRef.current = nextId
+        setSearchParams({ open: nextId }, { replace: true })
+      }
     } catch (error) {
+      if (recordLoadRequestRef.current !== requestId) return
       toast.error(error.response?.data?.message || 'No se pudo abrir contrato empresa')
+    } finally {
+      if (recordLoadRequestRef.current === requestId) {
+        recordLoadingRef.current = false
+        if (!keepLoadingRecordId) setLoadingRecordId('')
+        setLoading(false)
+      }
     }
   }
 
@@ -1549,6 +2155,19 @@ const ContratoEmpresa = () => {
     documentos: related.documentos.map((item) => item.id_documento),
   })
 
+  const refreshReservedContractCode = async () => {
+    const res = await api.post('/api/contratos-empresa/reserve-code')
+    const code = res.data?.codigo_contrato_empresa || ''
+    if (!code) return ''
+    reservedContractCodeRef.current = code
+    setForm((prev) => ({
+      ...prev,
+      codigo_contrato_empresa: code,
+      id_estado_ctr: prev.id_estado_ctr || getDefaultEstadoContrato(lookups),
+    }))
+    return code
+  }
+
   const submit = async () => {
     if (!validate()) return
     if (current?.id && !canWrite) return
@@ -1565,7 +2184,17 @@ const ContratoEmpresa = () => {
         }))
         toast.success('Contrato empresa actualizado')
       } else {
-        const res = await api.post('/api/contratos-empresa', buildPayload())
+        let payload = buildPayload()
+        let res
+        try {
+          res = await api.post('/api/contratos-empresa', payload)
+        } catch (error) {
+          const message = error.response?.data?.message || ''
+          if (message !== 'Codigo de contrato no reservado o expirado') throw error
+          const freshCode = await refreshReservedContractCode()
+          payload = { ...buildPayload(), codigo_contrato_empresa: freshCode || payload.codigo_contrato_empresa }
+          res = await api.post('/api/contratos-empresa', payload)
+        }
         reservedContractCodeRef.current = ''
         setCurrent(res.data)
         setSearchParams({ open: String(res.data?.id) }, { replace: true })
@@ -1713,6 +2342,8 @@ const ContratoEmpresa = () => {
     return canWrite
   }
 
+  const hasPersistedContract = Boolean(current?.id || currentIdRef.current)
+
   const handleSort = (key) => {
     const nextDir = sortBy === key && sortDir === 'asc' ? 'desc' : 'asc'
     setSortBy(key)
@@ -1720,25 +2351,19 @@ const ContratoEmpresa = () => {
     setPage(1)
   }
 
-  const onSearch = () => {
-    const searchText = normalizeSearchQuery(q)
-    setQ(searchText)
-    setPage(1)
-    loadList({ pageOverride: 1, qOverride: searchText }).catch(() => {})
-  }
+  const fetchExportRows = async ({
+    allRecords,
+    currentRecord,
+    dateFromOverride,
+    dateToOverride,
+  } = {}) => {
+    if (currentRecord) {
+      const currentId = current?.id || currentIdRef.current
+      if (!currentId) return []
+      const res = await api.get(`/api/contratos-empresa/${encodeURIComponent(currentId)}`)
+      return res.data ? [res.data] : []
+    }
 
-  const clearHeaderSearch = () => {
-    headerSearchRequestRef.current += 1
-    setQ('')
-    setSearchStatus('idle')
-    setHeaderSearchResults([])
-    setShowHeaderSearchResults(false)
-    setActiveHeaderSearchIndex(-1)
-    setPage(1)
-    loadList({ pageOverride: 1, qOverride: '' }).catch(() => {})
-  }
-
-  const fetchExportRows = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
     const dateParams = buildDateRangeParams({
       dateFrom: dateFromOverride,
       dateTo: dateToOverride,
@@ -1748,7 +2373,7 @@ const ContratoEmpresa = () => {
         params: {
           page,
           pageSize,
-          q: normalizeSearchQuery(q),
+          q: '',
           sortBy,
           sortDir,
           ...dateParams,
@@ -1765,7 +2390,7 @@ const ContratoEmpresa = () => {
         params: {
           page: pageAll,
           pageSize: pageSizeAll,
-          q: normalizeSearchQuery(q),
+          q: '',
           sortBy,
           sortDir,
           ...dateParams,
@@ -1779,10 +2404,28 @@ const ContratoEmpresa = () => {
     return all
   }
 
-  const exportContractsExcel = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+  const exportContractsExcel = async ({
+    allRecords,
+    currentRecord,
+    dateFromOverride,
+    dateToOverride,
+  } = {}) => {
     setExporting(true)
     try {
-      const rows = await fetchExportRows({ allRecords, dateFromOverride, dateToOverride })
+      const rows = await fetchExportRows({
+        allRecords,
+        currentRecord,
+        dateFromOverride,
+        dateToOverride,
+      })
+      if (!rows.length) {
+        toast.info(
+          currentRecord
+            ? 'No hay un contrato cargado en el formulario para exportar.'
+            : 'No hay registros para exportar.',
+        )
+        return
+      }
       const exportRows = rows.map((row) =>
         contractExportColumns.reduce((acc, [field, label]) => {
           acc[label] = field.startsWith('fecha') || field.endsWith('_at')
@@ -1791,11 +2434,68 @@ const ContratoEmpresa = () => {
           return acc
         }, {}),
       )
+      const detailedRows = await Promise.all(
+        rows
+          .filter((row) => row?.id)
+          .map(async (row) =>
+            row?.lineas || row?.casos || row?.documentos
+              ? row
+              : (await api.get(`/api/contratos-empresa/${encodeURIComponent(row.id)}`)).data,
+          ),
+      )
+      const lineRows = detailedRows.flatMap((row) =>
+        (row?.lineas || []).map((linea) =>
+          contractLineExportColumns.reduce((acc, [field, label]) => {
+            const source = {
+              codigo_contrato_empresa: row.codigo_contrato_empresa,
+              contrato: row.titulo,
+              ...linea,
+            }
+            acc[label] = ['tarifa_fija', 'tarifa_variable'].includes(field)
+              ? formatCurrencyAmount(source[field], source.divisa)
+              : formatValue(source[field])
+            return acc
+          }, {}),
+        ),
+      )
+      const caseRows = detailedRows.flatMap((row) =>
+        (row?.casos || []).map((caso) =>
+          contractCaseExportColumns.reduce((acc, [field, label]) => {
+            const source = {
+              codigo_contrato_empresa: row.codigo_contrato_empresa,
+              contrato: row.titulo,
+              ...caso,
+            }
+            acc[label] = field === 'adjuntos'
+              ? formatValue(getAttachmentUrl(source[field]) || source[field])
+              : formatValue(source[field])
+            return acc
+          }, {}),
+        ),
+      )
+      const documentRows = detailedRows.flatMap((row) =>
+        (row?.documentos || []).map((documento) =>
+          contractDocumentExportColumns.reduce((acc, [field, label]) => {
+            const source = {
+              codigo_contrato_empresa: row.codigo_contrato_empresa,
+              contrato: row.titulo,
+              ...documento,
+            }
+            acc[label] = formatValue(source[field])
+            return acc
+          }, {}),
+        ),
+      )
       const dateTag = new Date().toISOString().slice(0, 10)
       await exportToXlsx({
         fileName: `contratos_empresa_${dateTag}.xlsx`,
         sheetName: 'Contratos Empresa',
         rows: exportRows,
+        sheets: [
+          { sheetName: 'Lineas de Contrato', rows: lineRows },
+          { sheetName: 'Casos', rows: caseRows },
+          { sheetName: 'Documentos', rows: documentRows },
+        ],
       })
     } catch (error) {
       toast.error(error?.message || 'No se pudo exportar')
@@ -1804,10 +2504,28 @@ const ContratoEmpresa = () => {
     }
   }
 
-  const exportContractsPdf = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
+  const exportContractsPdf = async ({
+    allRecords,
+    currentRecord,
+    dateFromOverride,
+    dateToOverride,
+  } = {}) => {
     setExporting(true)
     try {
-      const rows = await fetchExportRows({ allRecords, dateFromOverride, dateToOverride })
+      const rows = await fetchExportRows({
+        allRecords,
+        currentRecord,
+        dateFromOverride,
+        dateToOverride,
+      })
+      if (!rows.length) {
+        toast.info(
+          currentRecord
+            ? 'No hay un contrato cargado en el formulario para exportar.'
+            : 'No hay registros para exportar.',
+        )
+        return
+      }
       const head = contractExportColumns.map(([, label]) => label)
       const body = rows.map((row) =>
         contractExportColumns.map(([field]) =>
@@ -1854,103 +2572,56 @@ const ContratoEmpresa = () => {
     setExportModalOpen(true)
   }
 
-  const confirmExport = async ({ allRecords, dateFrom, dateTo, format }) => {
+  const confirmExport = async ({ allRecords, currentRecord, dateFrom, dateTo, format }) => {
     if (format === 'pdf') {
-      await exportContractsPdf({ allRecords, dateFromOverride: dateFrom, dateToOverride: dateTo })
+      await exportContractsPdf({
+        allRecords,
+        currentRecord,
+        dateFromOverride: dateFrom,
+        dateToOverride: dateTo,
+      })
     } else {
-      await exportContractsExcel({ allRecords, dateFromOverride: dateFrom, dateToOverride: dateTo })
+      await exportContractsExcel({
+        allRecords,
+        currentRecord,
+        dateFromOverride: dateFrom,
+        dateToOverride: dateTo,
+      })
     }
     setExportModalOpen(false)
-  }
-
-  const openHeaderSearchResult = async (item) => {
-    if (!item?.id) return
-    setShowHeaderSearchResults(false)
-    setActiveHeaderSearchIndex(-1)
-    await loadRecord(item.id)
-  }
-
-  const searchAndOpen = async ({ openFirst = true } = {}) => {
-    const searchText = normalizeSearchQuery(q)
-    setQ(searchText)
-    setPage(1)
-    setShowHeaderSearchResults(!!searchText)
-    if (!searchText) {
-      clearHeaderSearch()
-      return
-    }
-    if (openFirst && headerSearchResults.length > 0) {
-      await openHeaderSearchResult(
-        activeHeaderSearchIndex >= 0
-          ? headerSearchResults[activeHeaderSearchIndex]
-          : headerSearchResults[0],
-      )
-      return
-    }
-    const requestId = headerSearchRequestRef.current + 1
-    headerSearchRequestRef.current = requestId
-    setSearchStatus('loading')
-    setLoading(true)
-    try {
-      const res = await api.get('/api/contratos-empresa', {
-        params: {
-          page: 1,
-          pageSize: 8,
-          q: searchText,
-          sortBy: 'updated_at',
-          sortDir: 'desc',
-        },
-      })
-      if (headerSearchRequestRef.current !== requestId) return
-      const results = res.data.items || []
-      setItems(results)
-      setTotal(Number(res.data.total || 0))
-      setHeaderSearchResults(results)
-      if (openFirst && results.length === 1) {
-        await openHeaderSearchResult(results[0])
-        setShowHeaderSearchResults(false)
-      }
-      setSearchStatus(results.length ? 'results' : 'empty')
-    } catch (error) {
-      if (headerSearchRequestRef.current !== requestId) return
-      setSearchStatus('error')
-      toast.error(error.response?.data?.message || 'No se pudieron buscar contratos')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const renderRelatedSection = (type) => {
     const config = relatedConfig[type]
     const rows = related[type] || []
+    const relatedCanCreate = canCreateRelated(type)
+    const relatedCanWrite = canWriteRelated(type)
+    const canManageContractRelations =
+      hasPersistedContract && (canWrite || canCreate || relatedCanCreate || relatedCanWrite)
+    const showSaveHint = !hasPersistedContract
     return (
       <ContractSection title={config.title} icon={config.icon}>
         <div className="contract-related-toolbar">
-          <SearchableLookupField
-            label={config.title}
-            icon={config.icon}
-            value={selectedRelated[type]}
-            options={lookups[config.lookup] || []}
-            onChange={(value) => setSelectedRelated((prev) => ({ ...prev, [type]: value }))}
-            disabled={saving || (!current?.id && !canCreate) || (current?.id && !canWrite)}
-            placeholder={`Escribe para buscar ${config.title.toLowerCase()}...`}
-            hideLabel
-          />
           <CButton
             color="primary"
             onClick={() => openRelatedCreateModal(type)}
             disabled={
               saving ||
-              (!current?.id && !canCreate) ||
-              (current?.id && !canWrite) ||
-              !current?.id ||
-              !canCreateRelated(type)
+              !canManageContractRelations ||
+              !hasPersistedContract ||
+              !relatedCanCreate
             }
+            className="contract-related-add-button"
           >
             <CIcon icon={cilPlus} className="me-1" />
-            Agregar
+            +Agregar
           </CButton>
         </div>
+        {showSaveHint && (
+          <div className="contract-related-hint">
+            Guarda el contrato para habilitar esta seccion.
+          </div>
+        )}
         <div className="macos-grid contract-related-grid">
           <CTable hover responsive>
             <CTableHead>
@@ -2001,7 +2672,7 @@ const ContratoEmpresa = () => {
                         color="secondary"
                         variant="outline"
                         onClick={() => openMaintainer(type, row)}
-                        disabled={!canWriteRelated(type)}
+                        disabled={!relatedCanWrite}
                       >
                         <CIcon icon={cilPencil} />
                       </CButton>
@@ -2009,9 +2680,7 @@ const ContratoEmpresa = () => {
                         color="danger"
                         variant="outline"
                         onClick={() => removeRelated(type, row)}
-                        disabled={
-                          saving || (!current?.id && !canCreate) || (current?.id && !canWrite)
-                        }
+                        disabled={saving || !hasPersistedContract || !canManageContractRelations}
                       >
                         <CIcon icon={cilTrash} />
                       </CButton>
@@ -2094,20 +2763,17 @@ const ContratoEmpresa = () => {
           onSelectedAction={openEmpresaEditModal}
         />,
       ),
-    categoria: () =>
+    rut_empresa_detalle: () =>
       renderDraggableField(
         'company',
-        'categoria',
-        <SearchableLookupField
-          label="Categoria"
-          icon={cilBriefcase}
-          value={form.id_categoria}
-          options={lookups.categorias || []}
-          onChange={(value) => setField('id_categoria', value)}
-          required
-          disabled={saving}
-          placeholder="Escribe para buscar categoria..."
-        />,
+        'rut_empresa_detalle',
+        <div className="contract-field readonly">
+          <CFormLabel>
+            <CIcon icon={cilBadge} />
+            RUT empresa
+          </CFormLabel>
+          <strong>{formatValue(form.rut_empresa ? formatRut(selectedEmpresa?.id || form.rut_empresa) : '')}</strong>
+        </div>,
       ),
   }
 
@@ -2121,7 +2787,11 @@ const ContratoEmpresa = () => {
             <CIcon icon={cilDescription} />
             Titulo <span className="text-danger">*</span>
           </CFormLabel>
-          <CFormInput value={form.titulo} onChange={(event) => setField('titulo', event.target.value)} />
+          <CFormInput
+            ref={contractTitleInputRef}
+            value={form.titulo}
+            onChange={(event) => setField('titulo', event.target.value)}
+          />
         </div>,
         { md: 12 },
       ),
@@ -2243,12 +2913,12 @@ const ContratoEmpresa = () => {
       field,
       <div className="contract-field">
         <CFormLabel>
-          <CIcon icon={cilCalendar} />
-          {label}
-        </CFormLabel>
-        <CFormInput type="date" value={form[field]} onChange={(event) => setField(field, event.target.value)} />
-      </div>,
-    )
+            <CIcon icon={cilCalendar} />
+            {label}
+          </CFormLabel>
+          <MacDateInput value={form[field]} onChange={(nextValue) => setField(field, nextValue)} />
+        </div>,
+      )
   }
 
   const contactFieldRenderers = {
@@ -2307,128 +2977,34 @@ const ContratoEmpresa = () => {
       <div className="contract-company-shell">
         <div className="contract-company-topbar">
           <img src={logoUcm} alt="UCM" />
-          <div className="contract-company-header-search" ref={headerSearchRef}>
-            <div className="contract-company-search">
-              <CIcon icon={cilSearch} />
-              <CFormInput
-                value={q}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setQ(value)
-                  if (!value.trim()) setShowHeaderSearchResults(false)
-                }}
-                onFocus={() => {
-                  if (normalizeSearchQuery(q)) setShowHeaderSearchResults(true)
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowDown') {
-                    event.preventDefault()
-                    setShowHeaderSearchResults(true)
-                    setActiveHeaderSearchIndex((prev) =>
-                      Math.min(prev + 1, headerSearchResults.length - 1),
-                    )
-                    return
-                  }
-                  if (event.key === 'ArrowUp') {
-                    event.preventDefault()
-                    setActiveHeaderSearchIndex((prev) => Math.max(prev - 1, 0))
-                    return
-                  }
-                  if (event.key === 'Escape') {
-                    setShowHeaderSearchResults(false)
-                    return
-                  }
-                  runOnEnter(() => searchAndOpen({ openFirst: true }))(event)
-                }}
-                placeholder="Buscar por codigo contrato, RUT empresa o razon social..."
-              />
-              {q && (
-                <CButton
-                  className="contract-header-button"
-                  type="button"
-                  onClick={clearHeaderSearch}
-                  disabled={loading}
-                >
-                  <CIcon icon={cilX} />
-                </CButton>
-              )}
-              <CButton
-                className="contract-header-button contract-header-button-search"
-                type="button"
-                onClick={() => searchAndOpen({ openFirst: true })}
-                disabled={loading}
-              >
-                <CIcon icon={cilSearch} />
-              </CButton>
-            </div>
-            {showHeaderSearchResults &&
-              normalizeSearchQuery(q) &&
-              (headerSearchResults.length > 0 || ['loading', 'empty', 'error'].includes(searchStatus)) && (
-              <div className="contract-search-results">
-                {searchStatus === 'loading' && (
-                  <div className="contract-search-result">
-                    <span>...</span>
-                    <strong>Buscando contratos</strong>
-                    <em>Un momento</em>
-                  </div>
-                )}
-                {searchStatus === 'empty' && (
-                  <div className="contract-search-result">
-                    <span>0</span>
-                    <strong>Sin resultados</strong>
-                    <em>Prueba con otro texto</em>
-                  </div>
-                )}
-                {searchStatus === 'error' && (
-                  <div className="contract-search-result">
-                    <span>!</span>
-                    <strong>No se pudo buscar</strong>
-                    <em>Intenta nuevamente</em>
-                  </div>
-                )}
-                {headerSearchResults.slice(0, 6).map((item, index) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={`contract-search-result ${
-                      String(current?.id) === String(item.id) ? 'active' : ''
-                    } ${
-                      activeHeaderSearchIndex === index ? 'is-keyboard-active' : ''
-                    }`}
-                    onMouseEnter={() => setActiveHeaderSearchIndex(index)}
-                    onClick={() => openHeaderSearchResult(item)}
-                  >
-                    <span>#{item.id}</span>
-                    <strong>{item.titulo}</strong>
-                    <em>{item.empresa}</em>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {canExport && (
-            <div className="contract-export-box">
-              <CButton
-                color="secondary"
-                variant="outline"
-                onClick={() => openExport('xlsx')}
-                disabled={exporting || loading}
-              >
-                <CIcon icon={cilCloudDownload} />
-                Excel
-              </CButton>
-              <CButton
-                color="secondary"
-                variant="outline"
-                onClick={() => openExport('pdf')}
-                disabled={exporting || loading}
-              >
-                <CIcon icon={cilCloudDownload} />
-                PDF
-              </CButton>
-            </div>
-          )}
+          <ContractHeaderSearch
+            disabled={!canRead}
+            onSelect={(item) => loadRecord(item.id)}
+            onSelectCompany={canCreate ? selectCompanyForDraft : undefined}
+          />
           <div className="contract-header-actions">
+            {canExport && (
+              <>
+                <CButton
+                  className="contract-header-button contract-header-button-export"
+                  type="button"
+                  onClick={() => openExport('xlsx')}
+                  disabled={exporting || loading}
+                >
+                  <CIcon icon={cilCloudDownload} />
+                  Exportar a Excel
+                </CButton>
+                <CButton
+                  className="contract-header-button contract-header-button-export"
+                  type="button"
+                  onClick={() => openExport('pdf')}
+                  disabled={exporting || loading}
+                >
+                  <CIcon icon={cilCloudDownload} />
+                  Exportar a PDF
+                </CButton>
+              </>
+            )}
             {canCreate && (
               <CButton
                 className="contract-header-button contract-header-button-new"
@@ -2575,7 +3151,11 @@ const ContratoEmpresa = () => {
             <CModalTitle>{lineaEditingId ? 'Editar linea' : 'Crear linea'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
-            <div className="commercial-form-layout contract-company-create-line">
+            <div
+              ref={lineaModalRef}
+              className="commercial-form-layout contract-company-create-line"
+              onKeyDownCapture={(event) => handleEnterToNextField(event, lineaModalRef.current)}
+            >
               <section className="commercial-form-section">
                 <div className="commercial-form-section-title">
                   <CIcon icon={cilList} />
@@ -2680,10 +3260,9 @@ const ContratoEmpresa = () => {
                         <CIcon icon={cilCalendar} />
                         <span>Fecha inicio</span>
                       </CFormLabel>
-                      <CFormInput
-                        type="date"
+                      <MacDateInput
                         value={lineaForm.fecha_inicio}
-                        onChange={(event) => setLineaField('fecha_inicio', event.target.value)}
+                        onChange={(nextValue) => setLineaField('fecha_inicio', nextValue)}
                         disabled={lineaSaving}
                       />
                     </div>
@@ -2694,12 +3273,9 @@ const ContratoEmpresa = () => {
                         <CIcon icon={cilCalendar} />
                         <span>Inicio ciclo facturacion</span>
                       </CFormLabel>
-                      <CFormInput
-                        type="date"
+                      <MacDateInput
                         value={lineaForm.fecha_inicio_ciclo_facturacion}
-                        onChange={(event) =>
-                          setLineaField('fecha_inicio_ciclo_facturacion', event.target.value)
-                        }
+                        onChange={(nextValue) => setLineaField('fecha_inicio_ciclo_facturacion', nextValue)}
                         disabled={lineaSaving}
                       />
                     </div>
@@ -2731,8 +3307,8 @@ const ContratoEmpresa = () => {
                   </CCol>
                   {[
                     ['tarifa_fija', 'Tarifa fija'],
-                    ['moneda_fijo', 'Moneda fijo', 'text'],
                     ['tarifa_variable', 'Tarifa variable'],
+                    ['moneda_fijo', 'Moneda fijo', 'text'],
                     ['moneda_variable', 'Moneda variable', 'text'],
                     ['unidad_variable', 'Unidad variable', 'text'],
                   ].map(([field, label, type]) => (
@@ -2813,7 +3389,11 @@ const ContratoEmpresa = () => {
             <CModalTitle>{casoEditingId ? 'Editar caso' : 'Crear caso'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
-            <div className="commercial-form-layout contract-company-create-case">
+            <div
+              ref={casoModalRef}
+              className="commercial-form-layout contract-company-create-case"
+              onKeyDownCapture={(event) => handleEnterToNextField(event, casoModalRef.current)}
+            >
               <section className="commercial-form-section">
                 <div className="commercial-form-section-title">
                   <CIcon icon={cilAddressBook} />
@@ -2953,7 +3533,11 @@ const ContratoEmpresa = () => {
             </CModalTitle>
           </CModalHeader>
           <CModalBody>
-            <div className="commercial-form-layout contract-company-create-document">
+            <div
+              ref={documentoModalRef}
+              className="commercial-form-layout contract-company-create-document"
+              onKeyDownCapture={(event) => handleEnterToNextField(event, documentoModalRef.current)}
+            >
               <section className="commercial-form-section">
                 <div className="commercial-form-section-title">
                   <CIcon icon={cilFile} />
@@ -3139,7 +3723,11 @@ const ContratoEmpresa = () => {
             <CModalTitle>{contactoEditingId ? 'Editar contacto' : 'Crear contacto'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
-            <div className="commercial-form-layout contract-company-create-contact">
+            <div
+              ref={contactoModalRef}
+              className="commercial-form-layout contract-company-create-contact"
+              onKeyDownCapture={(event) => handleEnterToNextField(event, contactoModalRef.current)}
+            >
               <section className="commercial-form-section">
                 <div className="commercial-form-section-title">
                   <CIcon icon={cilAddressBook} />
@@ -3229,8 +3817,8 @@ const ContratoEmpresa = () => {
                         onChange={(event) => setContactoField('rut', event.target.value)}
                         placeholder="12.345.678-9"
                         disabled={contactoSaving}
-                        invalid={contactoRutStatus === 'invalid'}
-                        valid={contactoRutStatus === 'valid'}
+                        invalid={contactoRutStatus === 'invalid' || !!contactoRutDuplicate}
+                        valid={contactoRutStatus === 'valid' && !contactoRutDuplicate}
                       />
                       <small
                         className={`contract-rut-hint ${
@@ -3241,7 +3829,9 @@ const ContratoEmpresa = () => {
                               : ''
                         }`}
                       >
-                        {contactoRutStatus === 'valid'
+                        {contactoRutDuplicate
+                          ? `RUT duplicado: ${contactoRutDuplicate.rut}`
+                          : contactoRutStatus === 'valid'
                           ? 'RUT valido'
                           : contactoRutStatus === 'invalid'
                             ? 'RUT invalido'
@@ -3336,7 +3926,7 @@ const ContratoEmpresa = () => {
             <CButton
               color="primary"
               onClick={saveContacto}
-              disabled={contactoSaving || contactoRutStatus === 'invalid'}
+              disabled={contactoSaving || contactoRutStatus === 'invalid' || !!contactoRutDuplicate}
             >
               {contactoSaving ? 'Guardando...' : 'Guardar contacto'}
             </CButton>
@@ -3357,7 +3947,11 @@ const ContratoEmpresa = () => {
             <CModalTitle>{empresaEditingId ? 'Editar empresa' : 'Crear empresa'}</CModalTitle>
           </CModalHeader>
           <CModalBody>
-            <div className="commercial-form-layout contract-company-create-company">
+            <div
+              ref={empresaModalRef}
+              className="commercial-form-layout contract-company-create-company"
+              onKeyDownCapture={(event) => handleEnterToNextField(event, empresaModalRef.current)}
+            >
               <section className="commercial-form-section">
                 <div className="commercial-form-section-title">
                   <CIcon icon={cilBuilding} />
@@ -3373,10 +3967,14 @@ const ContratoEmpresa = () => {
                         </span>
                       </CFormLabel>
                       <CFormInput
+                        ref={empresaRutInputRef}
                         value={empresaForm.rut}
                         onChange={(event) => setEmpresaField('rut', event.target.value)}
                         placeholder="12.345.678-5"
+                        autoFocus={showEmpresaModal && !empresaEditingId}
                         disabled={empresaSaving || !!empresaEditingId}
+                        invalid={empresaRutStatus === 'invalid' || !!empresaRutDuplicate}
+                        valid={empresaRutStatus === 'valid' && !empresaRutDuplicate}
                       />
                       <small
                         className={`contract-rut-hint ${
@@ -3387,7 +3985,9 @@ const ContratoEmpresa = () => {
                               : ''
                         }`}
                       >
-                        {empresaRutStatus === 'valid'
+                        {empresaRutDuplicate
+                          ? `RUT duplicado: ${empresaRutDuplicate.id}`
+                          : empresaRutStatus === 'valid'
                           ? 'RUT valido'
                           : empresaRutStatus === 'invalid'
                             ? 'RUT invalido'
@@ -3599,7 +4199,11 @@ const ContratoEmpresa = () => {
             >
               Cancelar
             </CButton>
-            <CButton color="primary" onClick={saveEmpresa} disabled={empresaSaving}>
+            <CButton
+              color="primary"
+              onClick={saveEmpresa}
+              disabled={empresaSaving || (!!empresaRutDuplicate && !empresaEditingId)}
+            >
               {empresaSaving ? 'Guardando...' : 'Guardar empresa'}
             </CButton>
           </CModalFooter>
@@ -3610,6 +4214,7 @@ const ContratoEmpresa = () => {
           onConfirm={confirmExport}
           submitting={exporting}
           format={exportFormat}
+          canExportCurrent={hasPersistedContract}
         />
       </div>
     </div>

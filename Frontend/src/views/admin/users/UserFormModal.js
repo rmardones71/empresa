@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   CAvatar,
   CButton,
@@ -14,10 +14,12 @@ import {
   CModalTitle,
 } from '@coreui/react'
 import { useForm } from 'react-hook-form'
+import { scheduleFocusFirstField, handleEnterToNextField } from 'src/utils/formNavigation'
 
 const maxPhotoBytes = 250 * 1024
 
 const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submitting }) => {
+  const formRef = useRef(null)
   const [photoDataUrl, setPhotoDataUrl] = useState(initialValues?.photoDataUrl || '')
   const [photoError, setPhotoError] = useState('')
   const { register, handleSubmit, reset } = useForm({
@@ -49,6 +51,11 @@ const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submi
       })
     }
   }, [visible, initialValues, reset])
+
+  useEffect(() => {
+    if (!visible) return undefined
+    return scheduleFocusFirstField(() => formRef.current)
+  }, [visible, initialValues])
 
   const isEdit = !!initialValues?.userId
 
@@ -84,7 +91,11 @@ const UserFormModal = ({ visible, onClose, onSubmit, roles, initialValues, submi
       <CModalHeader>
         <CModalTitle>{isEdit ? 'Editar usuario' : 'Crear usuario'}</CModalTitle>
       </CModalHeader>
-      <CForm onSubmit={handleSubmit(submitWithPhoto)}>
+      <CForm
+        ref={formRef}
+        onSubmit={handleSubmit(submitWithPhoto)}
+        onKeyDownCapture={(event) => handleEnterToNextField(event, formRef.current)}
+      >
         <CModalBody>
           <div className="d-flex align-items-center gap-3 mb-3">
             <CAvatar

@@ -1,0 +1,299 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/@fs/C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=cac391c2"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+var _s = $RefreshSig$();
+import __vite__cjsImport1_react from "/node_modules/.vite/deps/react.js?v=cac391c2"; const React = __vite__cjsImport1_react.__esModule ? __vite__cjsImport1_react.default : __vite__cjsImport1_react; const useState = __vite__cjsImport1_react["useState"];
+import {
+  CButton,
+  CForm,
+  CFormCheck,
+  CFormInput,
+  CFormLabel,
+  CModal,
+  CModalBody,
+  CModalFooter,
+  CModalHeader,
+  CModalTitle
+} from "/node_modules/.vite/deps/@coreui_react.js?v=bf28b9d6";
+import CIcon from "/node_modules/.vite/deps/@coreui_icons-react.js?v=f206299a";
+import { cilCalendar, cilCloudDownload, cilList } from "/node_modules/.vite/deps/@coreui_icons.js?v=23b6742a";
+const ExportModal = ({ visible, onClose, onConfirm, submitting, format }) => {
+  _s();
+  const [mode, setMode] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const resetForm = () => {
+    setMode("all");
+    setDateFrom("");
+    setDateTo("");
+  };
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+  const doConfirm = () => {
+    const allRecords = mode === "all";
+    onConfirm({
+      allRecords,
+      dateFrom: allRecords ? "" : dateFrom,
+      dateTo: allRecords ? "" : dateTo,
+      format
+    });
+    resetForm();
+  };
+  const title = format === "pdf" ? "Exportar a PDF" : "Exportar a Excel";
+  return /* @__PURE__ */ jsxDEV(CModal, { alignment: "center", visible, onClose: handleClose, backdrop: "static", children: [
+    /* @__PURE__ */ jsxDEV(CModalHeader, { children: /* @__PURE__ */ jsxDEV(CModalTitle, { className: "fw-bold d-flex align-items-center gap-2", children: [
+      /* @__PURE__ */ jsxDEV(CIcon, { icon: cilCloudDownload }, void 0, false, {
+        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+        lineNumber: 50,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("span", { style: { fontSize: 15 }, children: title }, void 0, false, {
+        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+        lineNumber: 51,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+      lineNumber: 49,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+      lineNumber: 48,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(
+      CForm,
+      {
+        onSubmit: (e) => {
+          e.preventDefault();
+          doConfirm();
+        },
+        children: [
+          /* @__PURE__ */ jsxDEV(CModalBody, { className: "export-modal-body", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "export-modal-section", children: [
+              /* @__PURE__ */ jsxDEV(CFormLabel, { className: "export-modal-label", children: [
+                /* @__PURE__ */ jsxDEV(CIcon, { icon: cilList }, void 0, false, {
+                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                  lineNumber: 63,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { children: "Registros" }, void 0, false, {
+                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                  lineNumber: 64,
+                  columnNumber: 15
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                lineNumber: 62,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "export-mode-options", children: [
+                /* @__PURE__ */ jsxDEV(
+                  CFormCheck,
+                  {
+                    type: "radio",
+                    name: "exportMode",
+                    label: "Todos los registros",
+                    checked: mode === "all",
+                    onChange: () => setMode("all")
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                    lineNumber: 67,
+                    columnNumber: 15
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV(
+                  CFormCheck,
+                  {
+                    type: "radio",
+                    name: "exportMode",
+                    label: "Rango de fechas",
+                    checked: mode === "range",
+                    onChange: () => setMode("range")
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                    lineNumber: 74,
+                    columnNumber: 15
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                lineNumber: 66,
+                columnNumber: 13
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+              lineNumber: 61,
+              columnNumber: 11
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "export-modal-section", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "export-date-grid", children: [
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV(CFormLabel, { className: "export-modal-label", children: [
+                    /* @__PURE__ */ jsxDEV(CIcon, { icon: cilCalendar }, void 0, false, {
+                      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                      lineNumber: 88,
+                      columnNumber: 19
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("span", { children: "Fecha inicio" }, void 0, false, {
+                      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                      lineNumber: 89,
+                      columnNumber: 19
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                    lineNumber: 87,
+                    columnNumber: 17
+                  }, this),
+                  /* @__PURE__ */ jsxDEV(
+                    CFormInput,
+                    {
+                      type: "date",
+                      value: dateFrom,
+                      onChange: (e) => setDateFrom(e.target.value),
+                      disabled: mode !== "range"
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                      lineNumber: 91,
+                      columnNumber: 17
+                    },
+                    this
+                  )
+                ] }, void 0, true, {
+                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                  lineNumber: 86,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV(CFormLabel, { className: "export-modal-label", children: [
+                    /* @__PURE__ */ jsxDEV(CIcon, { icon: cilCalendar }, void 0, false, {
+                      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                      lineNumber: 100,
+                      columnNumber: 19
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("span", { children: "Fecha termino" }, void 0, false, {
+                      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                      lineNumber: 101,
+                      columnNumber: 19
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                    lineNumber: 99,
+                    columnNumber: 17
+                  }, this),
+                  /* @__PURE__ */ jsxDEV(
+                    CFormInput,
+                    {
+                      type: "date",
+                      value: dateTo,
+                      onChange: (e) => setDateTo(e.target.value),
+                      disabled: mode !== "range"
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                      lineNumber: 103,
+                      columnNumber: 17
+                    },
+                    this
+                  )
+                ] }, void 0, true, {
+                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                  lineNumber: 98,
+                  columnNumber: 15
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                lineNumber: 85,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "export-modal-help", children: "Si seleccionas rango, se considera la fecha completa (00:00 a 23:59)." }, void 0, false, {
+                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+                lineNumber: 111,
+                columnNumber: 13
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+              lineNumber: 84,
+              columnNumber: 11
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+            lineNumber: 60,
+            columnNumber: 9
+          }, this),
+          /* @__PURE__ */ jsxDEV(CModalFooter, { children: [
+            /* @__PURE__ */ jsxDEV(CButton, { color: "secondary", variant: "outline", onClick: handleClose, disabled: submitting, children: "Cancelar" }, void 0, false, {
+              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+              lineNumber: 117,
+              columnNumber: 11
+            }, this),
+            /* @__PURE__ */ jsxDEV(CButton, { color: "primary", type: "submit", disabled: submitting, children: submitting ? "Exportando..." : "Exportar" }, void 0, false, {
+              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+              lineNumber: 120,
+              columnNumber: 11
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+            lineNumber: 116,
+            columnNumber: 9
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+        lineNumber: 54,
+        columnNumber: 7
+      },
+      this
+    )
+  ] }, void 0, true, {
+    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx",
+    lineNumber: 47,
+    columnNumber: 5
+  }, this);
+};
+_s(ExportModal, "Gp1OGpbuwU3C9eqA/AnC4wXvnZY=");
+_c = ExportModal;
+export default ExportModal;
+var _c;
+$RefreshReg$(_c, "ExportModal");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) {
+  return RefreshRuntime.register(type, "C:/aplicativos/oportunidades/Frontend/src/components/ExportModal.jsx " + id);
+}
+function $RefreshSig$() {
+  return RefreshRuntime.createSignatureFunctionForTransform();
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBaURVOztBQWpEVixPQUFPQSxTQUFTQyxnQkFBZ0I7QUFDaEM7QUFBQSxFQUNFQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxFQUNBQztBQUFBQSxPQUNLO0FBQ1AsT0FBT0MsV0FBVztBQUNsQixTQUFTQyxhQUFhQyxrQkFBa0JDLGVBQWU7QUFFdkQsTUFBTUMsY0FBY0EsQ0FBQyxFQUFFQyxTQUFTQyxTQUFTQyxXQUFXQyxZQUFZQyxPQUFPLE1BQU07QUFBQUMsS0FBQTtBQUMzRSxRQUFNLENBQUNDLE1BQU1DLE9BQU8sSUFBSXZCLFNBQVMsS0FBSztBQUN0QyxRQUFNLENBQUN3QixVQUFVQyxXQUFXLElBQUl6QixTQUFTLEVBQUU7QUFDM0MsUUFBTSxDQUFDMEIsUUFBUUMsU0FBUyxJQUFJM0IsU0FBUyxFQUFFO0FBRXZDLFFBQU00QixZQUFZQSxNQUFNO0FBQ3RCTCxZQUFRLEtBQUs7QUFDYkUsZ0JBQVksRUFBRTtBQUNkRSxjQUFVLEVBQUU7QUFBQSxFQUNkO0FBRUEsUUFBTUUsY0FBY0EsTUFBTTtBQUN4QkQsY0FBVTtBQUNWWCxZQUFRO0FBQUEsRUFDVjtBQUVBLFFBQU1hLFlBQVlBLE1BQU07QUFDdEIsVUFBTUMsYUFBYVQsU0FBUztBQUM1QkosY0FBVTtBQUFBLE1BQ1JhO0FBQUFBLE1BQ0FQLFVBQVVPLGFBQWEsS0FBS1A7QUFBQUEsTUFDNUJFLFFBQVFLLGFBQWEsS0FBS0w7QUFBQUEsTUFDMUJOO0FBQUFBLElBQ0YsQ0FBQztBQUNEUSxjQUFVO0FBQUEsRUFDWjtBQUVBLFFBQU1JLFFBQVFaLFdBQVcsUUFBUSxtQkFBbUI7QUFFcEQsU0FDRSx1QkFBQyxVQUFPLFdBQVUsVUFBUyxTQUFrQixTQUFTUyxhQUFhLFVBQVMsVUFDMUU7QUFBQSwyQkFBQyxnQkFDQyxpQ0FBQyxlQUFZLFdBQVUsMkNBQ3JCO0FBQUEsNkJBQUMsU0FBTSxNQUFNaEIsb0JBQWI7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUE4QjtBQUFBLE1BQzlCLHVCQUFDLFVBQUssT0FBTyxFQUFFb0IsVUFBVSxHQUFHLEdBQUlELG1CQUFoQztBQUFBO0FBQUE7QUFBQTtBQUFBLGFBQXNDO0FBQUEsU0FGeEM7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUdBLEtBSkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUtBO0FBQUEsSUFDQTtBQUFBLE1BQUM7QUFBQTtBQUFBLFFBQ0MsVUFBVSxDQUFDRSxNQUFNO0FBQ2ZBLFlBQUVDLGVBQWU7QUFDakJMLG9CQUFVO0FBQUEsUUFDWjtBQUFBLFFBRUE7QUFBQSxpQ0FBQyxjQUFXLFdBQVUscUJBQ3BCO0FBQUEsbUNBQUMsU0FBSSxXQUFVLHdCQUNiO0FBQUEscUNBQUMsY0FBVyxXQUFVLHNCQUNwQjtBQUFBLHVDQUFDLFNBQU0sTUFBTWhCLFdBQWI7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFBcUI7QUFBQSxnQkFDckIsdUJBQUMsVUFBSyx5QkFBTjtBQUFBO0FBQUE7QUFBQTtBQUFBLHVCQUFlO0FBQUEsbUJBRmpCO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBR0E7QUFBQSxjQUNBLHVCQUFDLFNBQUksV0FBVSx1QkFDYjtBQUFBO0FBQUEsa0JBQUM7QUFBQTtBQUFBLG9CQUNDLE1BQUs7QUFBQSxvQkFDTCxNQUFLO0FBQUEsb0JBQ0wsT0FBTTtBQUFBLG9CQUNOLFNBQVNRLFNBQVM7QUFBQSxvQkFDbEIsVUFBVSxNQUFNQyxRQUFRLEtBQUs7QUFBQTtBQUFBLGtCQUwvQjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsZ0JBS2lDO0FBQUEsZ0JBRWpDO0FBQUEsa0JBQUM7QUFBQTtBQUFBLG9CQUNDLE1BQUs7QUFBQSxvQkFDTCxNQUFLO0FBQUEsb0JBQ0wsT0FBTTtBQUFBLG9CQUNOLFNBQVNELFNBQVM7QUFBQSxvQkFDbEIsVUFBVSxNQUFNQyxRQUFRLE9BQU87QUFBQTtBQUFBLGtCQUxqQztBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsZ0JBS21DO0FBQUEsbUJBYnJDO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBZUE7QUFBQSxpQkFwQkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFxQkE7QUFBQSxZQUVBLHVCQUFDLFNBQUksV0FBVSx3QkFDYjtBQUFBLHFDQUFDLFNBQUksV0FBVSxvQkFDYjtBQUFBLHVDQUFDLFNBQ0M7QUFBQSx5Q0FBQyxjQUFXLFdBQVUsc0JBQ3BCO0FBQUEsMkNBQUMsU0FBTSxNQUFNWCxlQUFiO0FBQUE7QUFBQTtBQUFBO0FBQUEsMkJBQXlCO0FBQUEsb0JBQ3pCLHVCQUFDLFVBQUssNEJBQU47QUFBQTtBQUFBO0FBQUE7QUFBQSwyQkFBa0I7QUFBQSx1QkFGcEI7QUFBQTtBQUFBO0FBQUE7QUFBQSx5QkFHQTtBQUFBLGtCQUNBO0FBQUEsb0JBQUM7QUFBQTtBQUFBLHNCQUNDLE1BQUs7QUFBQSxzQkFDTCxPQUFPWTtBQUFBQSxzQkFDUCxVQUFVLENBQUNVLE1BQU1ULFlBQVlTLEVBQUVFLE9BQU9DLEtBQUs7QUFBQSxzQkFDM0MsVUFBVWYsU0FBUztBQUFBO0FBQUEsb0JBSnJCO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxrQkFJNkI7QUFBQSxxQkFUL0I7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFXQTtBQUFBLGdCQUNBLHVCQUFDLFNBQ0M7QUFBQSx5Q0FBQyxjQUFXLFdBQVUsc0JBQ3BCO0FBQUEsMkNBQUMsU0FBTSxNQUFNVixlQUFiO0FBQUE7QUFBQTtBQUFBO0FBQUEsMkJBQXlCO0FBQUEsb0JBQ3pCLHVCQUFDLFVBQUssNkJBQU47QUFBQTtBQUFBO0FBQUE7QUFBQSwyQkFBbUI7QUFBQSx1QkFGckI7QUFBQTtBQUFBO0FBQUE7QUFBQSx5QkFHQTtBQUFBLGtCQUNBO0FBQUEsb0JBQUM7QUFBQTtBQUFBLHNCQUNDLE1BQUs7QUFBQSxzQkFDTCxPQUFPYztBQUFBQSxzQkFDUCxVQUFVLENBQUNRLE1BQU1QLFVBQVVPLEVBQUVFLE9BQU9DLEtBQUs7QUFBQSxzQkFDekMsVUFBVWYsU0FBUztBQUFBO0FBQUEsb0JBSnJCO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxrQkFJNkI7QUFBQSxxQkFUL0I7QUFBQTtBQUFBO0FBQUE7QUFBQSx1QkFXQTtBQUFBLG1CQXhCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLHFCQXlCQTtBQUFBLGNBQ0EsdUJBQUMsU0FBSSxXQUFVLHFCQUFtQixxRkFBbEM7QUFBQTtBQUFBO0FBQUE7QUFBQSxxQkFFQTtBQUFBLGlCQTdCRjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQThCQTtBQUFBLGVBdERGO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBdURBO0FBQUEsVUFDQSx1QkFBQyxnQkFDQztBQUFBLG1DQUFDLFdBQVEsT0FBTSxhQUFZLFNBQVEsV0FBVSxTQUFTTyxhQUFhLFVBQVVWLFlBQVcsd0JBQXhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBRUE7QUFBQSxZQUNBLHVCQUFDLFdBQVEsT0FBTSxXQUFVLE1BQUssVUFBUyxVQUFVQSxZQUM5Q0EsdUJBQWEsa0JBQWtCLGNBRGxDO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBRUE7QUFBQSxlQU5GO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBT0E7QUFBQTtBQUFBO0FBQUEsTUFyRUY7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLElBc0VBO0FBQUEsT0E3RUY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQThFQTtBQUVKO0FBQUNFLEdBOUdLTixhQUFXO0FBQUEsS0FBWEE7QUFnSE4sZUFBZUE7QUFBVyxJQUFBdUI7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VTdGF0ZSIsIkNCdXR0b24iLCJDRm9ybSIsIkNGb3JtQ2hlY2siLCJDRm9ybUlucHV0IiwiQ0Zvcm1MYWJlbCIsIkNNb2RhbCIsIkNNb2RhbEJvZHkiLCJDTW9kYWxGb290ZXIiLCJDTW9kYWxIZWFkZXIiLCJDTW9kYWxUaXRsZSIsIkNJY29uIiwiY2lsQ2FsZW5kYXIiLCJjaWxDbG91ZERvd25sb2FkIiwiY2lsTGlzdCIsIkV4cG9ydE1vZGFsIiwidmlzaWJsZSIsIm9uQ2xvc2UiLCJvbkNvbmZpcm0iLCJzdWJtaXR0aW5nIiwiZm9ybWF0IiwiX3MiLCJtb2RlIiwic2V0TW9kZSIsImRhdGVGcm9tIiwic2V0RGF0ZUZyb20iLCJkYXRlVG8iLCJzZXREYXRlVG8iLCJyZXNldEZvcm0iLCJoYW5kbGVDbG9zZSIsImRvQ29uZmlybSIsImFsbFJlY29yZHMiLCJ0aXRsZSIsImZvbnRTaXplIiwiZSIsInByZXZlbnREZWZhdWx0IiwidGFyZ2V0IiwidmFsdWUiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJFeHBvcnRNb2RhbC5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlIH0gZnJvbSAncmVhY3QnXG5pbXBvcnQge1xuICBDQnV0dG9uLFxuICBDRm9ybSxcbiAgQ0Zvcm1DaGVjayxcbiAgQ0Zvcm1JbnB1dCxcbiAgQ0Zvcm1MYWJlbCxcbiAgQ01vZGFsLFxuICBDTW9kYWxCb2R5LFxuICBDTW9kYWxGb290ZXIsXG4gIENNb2RhbEhlYWRlcixcbiAgQ01vZGFsVGl0bGUsXG59IGZyb20gJ0Bjb3JldWkvcmVhY3QnXG5pbXBvcnQgQ0ljb24gZnJvbSAnQGNvcmV1aS9pY29ucy1yZWFjdCdcbmltcG9ydCB7IGNpbENhbGVuZGFyLCBjaWxDbG91ZERvd25sb2FkLCBjaWxMaXN0IH0gZnJvbSAnQGNvcmV1aS9pY29ucydcblxuY29uc3QgRXhwb3J0TW9kYWwgPSAoeyB2aXNpYmxlLCBvbkNsb3NlLCBvbkNvbmZpcm0sIHN1Ym1pdHRpbmcsIGZvcm1hdCB9KSA9PiB7XG4gIGNvbnN0IFttb2RlLCBzZXRNb2RlXSA9IHVzZVN0YXRlKCdhbGwnKSAvLyBhbGwgfCByYW5nZVxuICBjb25zdCBbZGF0ZUZyb20sIHNldERhdGVGcm9tXSA9IHVzZVN0YXRlKCcnKVxuICBjb25zdCBbZGF0ZVRvLCBzZXREYXRlVG9dID0gdXNlU3RhdGUoJycpXG5cbiAgY29uc3QgcmVzZXRGb3JtID0gKCkgPT4ge1xuICAgIHNldE1vZGUoJ2FsbCcpXG4gICAgc2V0RGF0ZUZyb20oJycpXG4gICAgc2V0RGF0ZVRvKCcnKVxuICB9XG5cbiAgY29uc3QgaGFuZGxlQ2xvc2UgPSAoKSA9PiB7XG4gICAgcmVzZXRGb3JtKClcbiAgICBvbkNsb3NlKClcbiAgfVxuXG4gIGNvbnN0IGRvQ29uZmlybSA9ICgpID0+IHtcbiAgICBjb25zdCBhbGxSZWNvcmRzID0gbW9kZSA9PT0gJ2FsbCdcbiAgICBvbkNvbmZpcm0oe1xuICAgICAgYWxsUmVjb3JkcyxcbiAgICAgIGRhdGVGcm9tOiBhbGxSZWNvcmRzID8gJycgOiBkYXRlRnJvbSxcbiAgICAgIGRhdGVUbzogYWxsUmVjb3JkcyA/ICcnIDogZGF0ZVRvLFxuICAgICAgZm9ybWF0LFxuICAgIH0pXG4gICAgcmVzZXRGb3JtKClcbiAgfVxuXG4gIGNvbnN0IHRpdGxlID0gZm9ybWF0ID09PSAncGRmJyA/ICdFeHBvcnRhciBhIFBERicgOiAnRXhwb3J0YXIgYSBFeGNlbCdcblxuICByZXR1cm4gKFxuICAgIDxDTW9kYWwgYWxpZ25tZW50PVwiY2VudGVyXCIgdmlzaWJsZT17dmlzaWJsZX0gb25DbG9zZT17aGFuZGxlQ2xvc2V9IGJhY2tkcm9wPVwic3RhdGljXCI+XG4gICAgICA8Q01vZGFsSGVhZGVyPlxuICAgICAgICA8Q01vZGFsVGl0bGUgY2xhc3NOYW1lPVwiZnctYm9sZCBkLWZsZXggYWxpZ24taXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgPENJY29uIGljb249e2NpbENsb3VkRG93bmxvYWR9IC8+XG4gICAgICAgICAgPHNwYW4gc3R5bGU9e3sgZm9udFNpemU6IDE1IH19Pnt0aXRsZX08L3NwYW4+XG4gICAgICAgIDwvQ01vZGFsVGl0bGU+XG4gICAgICA8L0NNb2RhbEhlYWRlcj5cbiAgICAgIDxDRm9ybVxuICAgICAgICBvblN1Ym1pdD17KGUpID0+IHtcbiAgICAgICAgICBlLnByZXZlbnREZWZhdWx0KClcbiAgICAgICAgICBkb0NvbmZpcm0oKVxuICAgICAgICB9fVxuICAgICAgPlxuICAgICAgICA8Q01vZGFsQm9keSBjbGFzc05hbWU9XCJleHBvcnQtbW9kYWwtYm9keVwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZXhwb3J0LW1vZGFsLXNlY3Rpb25cIj5cbiAgICAgICAgICAgIDxDRm9ybUxhYmVsIGNsYXNzTmFtZT1cImV4cG9ydC1tb2RhbC1sYWJlbFwiPlxuICAgICAgICAgICAgICA8Q0ljb24gaWNvbj17Y2lsTGlzdH0gLz5cbiAgICAgICAgICAgICAgPHNwYW4+UmVnaXN0cm9zPC9zcGFuPlxuICAgICAgICAgICAgPC9DRm9ybUxhYmVsPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJleHBvcnQtbW9kZS1vcHRpb25zXCI+XG4gICAgICAgICAgICAgIDxDRm9ybUNoZWNrXG4gICAgICAgICAgICAgICAgdHlwZT1cInJhZGlvXCJcbiAgICAgICAgICAgICAgICBuYW1lPVwiZXhwb3J0TW9kZVwiXG4gICAgICAgICAgICAgICAgbGFiZWw9XCJUb2RvcyBsb3MgcmVnaXN0cm9zXCJcbiAgICAgICAgICAgICAgICBjaGVja2VkPXttb2RlID09PSAnYWxsJ31cbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KCkgPT4gc2V0TW9kZSgnYWxsJyl9XG4gICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgIDxDRm9ybUNoZWNrXG4gICAgICAgICAgICAgICAgdHlwZT1cInJhZGlvXCJcbiAgICAgICAgICAgICAgICBuYW1lPVwiZXhwb3J0TW9kZVwiXG4gICAgICAgICAgICAgICAgbGFiZWw9XCJSYW5nbyBkZSBmZWNoYXNcIlxuICAgICAgICAgICAgICAgIGNoZWNrZWQ9e21vZGUgPT09ICdyYW5nZSd9XG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9eygpID0+IHNldE1vZGUoJ3JhbmdlJyl9XG4gICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZXhwb3J0LW1vZGFsLXNlY3Rpb25cIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZXhwb3J0LWRhdGUtZ3JpZFwiPlxuICAgICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICAgIDxDRm9ybUxhYmVsIGNsYXNzTmFtZT1cImV4cG9ydC1tb2RhbC1sYWJlbFwiPlxuICAgICAgICAgICAgICAgICAgPENJY29uIGljb249e2NpbENhbGVuZGFyfSAvPlxuICAgICAgICAgICAgICAgICAgPHNwYW4+RmVjaGEgaW5pY2lvPC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvQ0Zvcm1MYWJlbD5cbiAgICAgICAgICAgICAgICA8Q0Zvcm1JbnB1dFxuICAgICAgICAgICAgICAgICAgdHlwZT1cImRhdGVcIlxuICAgICAgICAgICAgICAgICAgdmFsdWU9e2RhdGVGcm9tfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXREYXRlRnJvbShlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAgICAgICBkaXNhYmxlZD17bW9kZSAhPT0gJ3JhbmdlJ31cbiAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgICAgICA8Q0Zvcm1MYWJlbCBjbGFzc05hbWU9XCJleHBvcnQtbW9kYWwtbGFiZWxcIj5cbiAgICAgICAgICAgICAgICAgIDxDSWNvbiBpY29uPXtjaWxDYWxlbmRhcn0gLz5cbiAgICAgICAgICAgICAgICAgIDxzcGFuPkZlY2hhIHRlcm1pbm88L3NwYW4+XG4gICAgICAgICAgICAgICAgPC9DRm9ybUxhYmVsPlxuICAgICAgICAgICAgICAgIDxDRm9ybUlucHV0XG4gICAgICAgICAgICAgICAgICB0eXBlPVwiZGF0ZVwiXG4gICAgICAgICAgICAgICAgICB2YWx1ZT17ZGF0ZVRvfVxuICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXREYXRlVG8oZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgICAgICAgZGlzYWJsZWQ9e21vZGUgIT09ICdyYW5nZSd9XG4gICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZXhwb3J0LW1vZGFsLWhlbHBcIj5cbiAgICAgICAgICAgICAgU2kgc2VsZWNjaW9uYXMgcmFuZ28sIHNlIGNvbnNpZGVyYSBsYSBmZWNoYSBjb21wbGV0YSAoMDA6MDAgYSAyMzo1OSkuXG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9DTW9kYWxCb2R5PlxuICAgICAgICA8Q01vZGFsRm9vdGVyPlxuICAgICAgICAgIDxDQnV0dG9uIGNvbG9yPVwic2Vjb25kYXJ5XCIgdmFyaWFudD1cIm91dGxpbmVcIiBvbkNsaWNrPXtoYW5kbGVDbG9zZX0gZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9PlxuICAgICAgICAgICAgQ2FuY2VsYXJcbiAgICAgICAgICA8L0NCdXR0b24+XG4gICAgICAgICAgPENCdXR0b24gY29sb3I9XCJwcmltYXJ5XCIgdHlwZT1cInN1Ym1pdFwiIGRpc2FibGVkPXtzdWJtaXR0aW5nfT5cbiAgICAgICAgICAgIHtzdWJtaXR0aW5nID8gJ0V4cG9ydGFuZG8uLi4nIDogJ0V4cG9ydGFyJ31cbiAgICAgICAgICA8L0NCdXR0b24+XG4gICAgICAgIDwvQ01vZGFsRm9vdGVyPlxuICAgICAgPC9DRm9ybT5cbiAgICA8L0NNb2RhbD5cbiAgKVxufVxuXG5leHBvcnQgZGVmYXVsdCBFeHBvcnRNb2RhbFxuIl0sImZpbGUiOiJDOi9hcGxpY2F0aXZvcy9vcG9ydHVuaWRhZGVzL0Zyb250ZW5kL3NyYy9jb21wb25lbnRzL0V4cG9ydE1vZGFsLmpzeCJ9

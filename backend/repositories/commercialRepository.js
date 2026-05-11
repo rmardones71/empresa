@@ -18,6 +18,10 @@ function escapeLike(value) {
   return normalizeSearchText(value).replace(/[~%_[\]]/g, (match) => `~${match}`)
 }
 
+function normalizeRutSearch(value) {
+  return normalizeSearchText(value).replace(/[^0-9kK]/g, '').toUpperCase()
+}
+
 function assertField(resource, fieldName) {
   const allowed = new Set([
     resource.idField,
@@ -93,6 +97,13 @@ function buildWhere(resource, q, params, dateRange = {}) {
     const likeParts = resource.searchFields.map(
       (field) => `CONVERT(NVARCHAR(4000), base.${field}) COLLATE Latin1_General_100_CI_AI LIKE @q ESCAPE '~'`,
     )
+    const rutSearchText = resource.searchFields.includes('rut') ? normalizeRutSearch(searchText) : ''
+    if (rutSearchText) {
+      likeParts.push(
+        `REPLACE(REPLACE(REPLACE(UPPER(CONVERT(NVARCHAR(4000), base.rut)), '.', ''), '-', ''), ' ', '') LIKE @qRut ESCAPE '~'`,
+      )
+      params.qRut = `%${escapeLike(rutSearchText)}%`
+    }
     where.push(`(${likeParts.join(' OR ')})`)
     params.q = `%${escapeLike(searchText)}%`
   }

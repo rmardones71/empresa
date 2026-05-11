@@ -28,6 +28,15 @@ async function get(req, res) {
   }
 }
 
+async function metrics(req, res) {
+  try {
+    const result = await service.metrics(req.query)
+    return res.json(result)
+  } catch (error) {
+    return sendError(res, error)
+  }
+}
+
 async function create(req, res) {
   try {
     const result = await service.create(req.body, { userId: req.user.sub, ipAddress: req.ip })
@@ -128,6 +137,7 @@ module.exports = {
   addRelated,
   create,
   get,
+  metrics,
   list,
   lookups,
   releaseCode,

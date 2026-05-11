@@ -55,14 +55,77 @@ function conflict(message) {
   return error
 }
 
+function duplicate(message, field) {
+  const error = new Error(message)
+  error.status = 409
+  error.code = 'DUPLICATE'
+  error.field = field
+  return error
+}
+
+function normalizeRutForCompare(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/\./g, '')
+    .replace(/-/g, '')
+    .replace(/\s+/g, '')
+}
+
+async function ensureUniqueContactoRut(rut, excludeId = null) {
+  if (!rut) return
+  const rutNorm = normalizeRutForCompare(rut)
+  if (!rutNorm) return
+  const params = { rutNorm }
+  let where = `REPLACE(REPLACE(REPLACE(UPPER(ISNULL(rut,'')), '.', ''), '-', ''), ' ', '') = @rutNorm`
+  if (excludeId != null) {
+    where += ` AND id_contacto <> @excludeId`
+    params.excludeId = excludeId
+  }
+  const result = await sqlQuery(
+    `SELECT TOP 1 id_contacto AS id, rut FROM dbo.contacto WHERE ${where}`,
+    params,
+  )
+  const existing = result.recordset?.[0]
+  if (existing?.id) {
+    throw duplicate(`RUT contacto ya existe: ${existing.rut || rut}.`, 'rut')
+  }
+}
+
 async function ensureResourceSchema(resourceName) {
-  if (resourceName !== 'empresas') return
-  await sqlQuery(`
-    IF COL_LENGTH('dbo.empresa', 'ciudad') IS NULL
-    BEGIN
-      ALTER TABLE dbo.empresa ADD ciudad NVARCHAR(120) NULL;
-    END
-  `)
+  if (resourceName === 'empresas') {
+    await sqlQuery(`
+      IF COL_LENGTH('dbo.empresa', 'ciudad') IS NULL
+      BEGIN
+        ALTER TABLE dbo.empresa ADD ciudad NVARCHAR(120) NULL;
+      END
+    `)
+    return
+  }
+
+  if (resourceName === 'contactos') {
+    // Crea un indice UNIQUE filtrado solo cuando no existan duplicados actuales.
+    // Evita fallar en ambientes donde ya hay data duplicada historica.
+    await sqlQuery(`
+      IF NOT EXISTS (
+        SELECT 1
+        FROM sys.indexes i
+        WHERE i.name = 'UX_contacto_rut'
+          AND i.object_id = OBJECT_ID('dbo.contacto')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.contacto
+        WHERE rut IS NOT NULL AND LTRIM(RTRIM(rut)) <> ''
+        GROUP BY REPLACE(REPLACE(REPLACE(UPPER(rut), '.', ''), '-', ''), ' ', '')
+        HAVING COUNT(*) > 1
+      )
+      BEGIN
+        CREATE UNIQUE INDEX UX_contacto_rut
+        ON dbo.contacto(rut)
+        WHERE rut IS NOT NULL AND rut <> '';
+      END
+    `)
+  }
 }
 
 const allowedUploadTypes = new Map([
@@ -132,6 +195,15 @@ function normalizeSearchQuery(value) {
 
 function castValue(field, value) {
   if (value === undefined) return undefined
+  if (field.type === 'boolean') {
+    if (value === null || value === '') return false
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      if (['true', '1', 'si', 'sí', 'yes', 'on'].includes(normalized)) return true
+      if (['false', '0', 'no', 'off'].includes(normalized)) return false
+    }
+    return !!value
+  }
   if (value === null || value === '') return null
 
   if (field.type === 'int') {
@@ -144,8 +216,6 @@ function castValue(field, value) {
     const number = Number(value)
     return Number.isFinite(number) ? number : null
   }
-
-  if (field.type === 'boolean') return !!value
 
   if (field.type === 'date' || field.type === 'dateTime') {
     const date = new Date(String(value))
@@ -242,6 +312,12 @@ async function create(resourceName, body, actor) {
   await ensureResourceSchema(resourceName)
   const resource = getDefinition(resourceName)
   const payload = buildPayload(resource, body, { isCreate: true })
+
+  // Regla: no permitir 2 contactos con el mismo RUT (mismo comportamiento que empresa).
+  if (resourceName === 'contactos' && payload.rut) {
+    await ensureUniqueContactoRut(payload.rut, null)
+  }
+
   if (resource.audit) payload.usuario_creacion_id = actor?.userId ?? null
   const id = await repository.create(resource, payload)
   const created = await repository.getById(resource, id)
@@ -263,6 +339,11 @@ async function update(resourceName, rawId, body, actor) {
   const before = await repository.getById(resource, id)
   if (!before) throw notFound(resourceName)
   const payload = buildPayload(resource, body, { isCreate: false })
+
+  if (resourceName === 'contactos' && payload.rut) {
+    await ensureUniqueContactoRut(payload.rut, id)
+  }
+
   await repository.update(resource, id, payload)
   const nextId = payload[resource.idField] || id
   const after = await repository.getById(resource, nextId)
