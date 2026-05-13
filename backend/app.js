@@ -43,7 +43,13 @@ app.use(
   }),
 )
 
-app.get('/api/health', (req, res) => res.json({ ok: true }))
+app.get('/api/health', (req, res) =>
+  res.json({
+    ok: true,
+    app: 'crm-oportunidades-backend',
+    port: env.port,
+  }),
+)
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', usersRoutes)
