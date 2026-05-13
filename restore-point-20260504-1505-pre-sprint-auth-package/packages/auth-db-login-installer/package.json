@@ -1,0 +1,14 @@
+{
+  "name": "auth-db-login-installer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reusable installer for SQL Server connection and authentication backend.",
+  "type": "commonjs",
+  "main": "install.js",
+  "bin": {
+    "auth-db-login-installer": "./install.js"
+  },
+  "scripts": {
+    "install:target": "node install.js"
+  }
+}

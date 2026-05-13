@@ -1,0 +1,5 @@
+﻿Nombre de recuperacion: modelo_mantenedores
+Ruta: C:\aplicativos\oportunidades\restore-point-modelo_mantenedores
+Fecha: 2026-05-05 14:30:49
+Origen: C:\aplicativos\oportunidades
+Exclusiones: .git, .vscode, node_modules, build, dist, restore-point-*

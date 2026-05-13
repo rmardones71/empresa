@@ -1,0 +1,239 @@
+import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=cac391c2"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import __vite__cjsImport1_react from "/node_modules/.vite/deps/react.js?v=cac391c2"; const React = __vite__cjsImport1_react.__esModule ? __vite__cjsImport1_react.default : __vite__cjsImport1_react;
+import CIcon from "/node_modules/.vite/deps/@coreui_icons-react.js?v=f206299a";
+import {
+  cilAddressBook,
+  cilBriefcase,
+  cilBuilding,
+  cilDescription,
+  cilFile,
+  cilFolder,
+  cilIndustry,
+  cilList,
+  cilNotes,
+  cilPeople,
+  cilShieldAlt,
+  cilSpeedometer,
+  cilUser
+} from "/node_modules/.vite/deps/@coreui_icons.js?v=23b6742a";
+import { CNavGroup, CNavItem, CNavTitle } from "/node_modules/.vite/deps/@coreui_react.js?v=bf28b9d6";
+const _nav = [
+  {
+    component: CNavItem,
+    name: "Dashboard",
+    to: "/dashboard",
+    icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilSpeedometer, customClassName: "nav-icon" }, void 0, false, {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+      lineNumber: 25,
+      columnNumber: 11
+    }, this),
+    permissionKey: "dashboard.main"
+  },
+  {
+    component: CNavTitle,
+    name: "Administracion"
+  },
+  {
+    component: CNavTitle,
+    name: "Contratos"
+  },
+  {
+    component: CNavItem,
+    name: "Contrato Empresa",
+    to: "/contratos-empresa",
+    icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilDescription, customClassName: "nav-icon" }, void 0, false, {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+      lineNumber: 40,
+      columnNumber: 11
+    }, this),
+    permissionKey: "commercial.contratos_empresa"
+  },
+  {
+    component: CNavGroup,
+    name: "Gestion comercial",
+    to: "/commercial",
+    icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilBriefcase, customClassName: "nav-icon" }, void 0, false, {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+      lineNumber: 47,
+      columnNumber: 11
+    }, this),
+    // Controlado por Matriz de permisos: "Vista Mantenedores (menu)"
+    permissionKey: "ui.view_mantenedores",
+    items: [
+      {
+        component: CNavItem,
+        name: "Empresas",
+        to: "/commercial/empresas",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilBuilding, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 55,
+          columnNumber: 15
+        }, this),
+        permissionKey: "commercial.empresas"
+      },
+      {
+        component: CNavItem,
+        name: "Contactos",
+        to: "/commercial/contactos",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilAddressBook, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 62,
+          columnNumber: 15
+        }, this),
+        permissionKey: "commercial.contactos"
+      },
+      {
+        component: CNavItem,
+        name: "Contratos",
+        to: "/commercial/contratos_empresa",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilFolder, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 69,
+          columnNumber: 15
+        }, this),
+        permissionKey: "commercial.contratos_empresa"
+      },
+      {
+        component: CNavItem,
+        name: "Lineas",
+        to: "/commercial/lineas",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilList, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 76,
+          columnNumber: 15
+        }, this),
+        permissionKey: "commercial.lineas"
+      },
+      {
+        component: CNavItem,
+        name: "Casos",
+        to: "/commercial/casos",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilNotes, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 83,
+          columnNumber: 15
+        }, this),
+        permissionKey: "commercial.casos"
+      },
+      {
+        component: CNavItem,
+        name: "Documentos",
+        to: "/commercial/documentos",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilFile, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 90,
+          columnNumber: 15
+        }, this),
+        permissionKey: "commercial.documentos"
+      },
+      {
+        component: CNavGroup,
+        name: "Tablas maestras",
+        to: "/commercial/masters",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilIndustry, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 97,
+          columnNumber: 15
+        }, this),
+        items: [
+          {
+            component: CNavItem,
+            name: "Categorias",
+            to: "/commercial/categorias",
+            permissionKey: "commercial.categorias"
+          },
+          {
+            component: CNavItem,
+            name: "Tipos contacto",
+            to: "/commercial/tipo_contactos",
+            permissionKey: "commercial.tipo_contactos"
+          },
+          {
+            component: CNavItem,
+            name: "Estados contacto",
+            to: "/commercial/estado_contactos",
+            permissionKey: "commercial.estado_contactos"
+          },
+          {
+            component: CNavItem,
+            name: "Estados vitales",
+            to: "/commercial/estado_vitales",
+            permissionKey: "commercial.estado_vitales"
+          },
+          {
+            component: CNavItem,
+            name: "Estados contrato",
+            to: "/commercial/estados_ctr",
+            permissionKey: "commercial.estados_ctr"
+          },
+          {
+            component: CNavItem,
+            name: "Tipos servicio",
+            to: "/commercial/tipo_servicios",
+            permissionKey: "commercial.tipo_servicios"
+          },
+          {
+            component: CNavItem,
+            name: "Tipos tarifa",
+            to: "/commercial/tipo_tarifas",
+            permissionKey: "commercial.tipo_tarifas"
+          },
+          {
+            component: CNavItem,
+            name: "Frecuencias",
+            to: "/commercial/frecuencias",
+            permissionKey: "commercial.frecuencias"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    component: CNavGroup,
+    name: "Usuarios",
+    to: "/admin",
+    icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilPeople, customClassName: "nav-icon" }, void 0, false, {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+      lineNumber: 155,
+      columnNumber: 11
+    }, this),
+    items: [
+      {
+        component: CNavItem,
+        name: "Gestion de usuarios",
+        to: "/admin/users",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilUser, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 161,
+          columnNumber: 15
+        }, this),
+        permissionKey: "admin.users"
+      },
+      {
+        component: CNavItem,
+        name: "Roles",
+        to: "/admin/roles",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilShieldAlt, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 168,
+          columnNumber: 15
+        }, this),
+        permissionKey: "admin.roles"
+      },
+      {
+        component: CNavItem,
+        name: "Auditoria",
+        to: "/admin/audit",
+        icon: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilNotes, customClassName: "nav-icon" }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/_nav.js",
+          lineNumber: 175,
+          columnNumber: 15
+        }, this),
+        permissionKey: "admin.audit"
+      }
+    ]
+  }
+];
+export default _nav;
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIl9uYXYuanMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0J1xuaW1wb3J0IENJY29uIGZyb20gJ0Bjb3JldWkvaWNvbnMtcmVhY3QnXG5pbXBvcnQge1xuICBjaWxBZGRyZXNzQm9vayxcbiAgY2lsQnJpZWZjYXNlLFxuICBjaWxCdWlsZGluZyxcbiAgY2lsRGVzY3JpcHRpb24sXG4gIGNpbEZpbGUsXG4gIGNpbEZvbGRlcixcbiAgY2lsSW5kdXN0cnksXG4gIGNpbExpc3QsXG4gIGNpbE5vdGVzLFxuICBjaWxQZW9wbGUsXG4gIGNpbFNoaWVsZEFsdCxcbiAgY2lsU3BlZWRvbWV0ZXIsXG4gIGNpbFVzZXIsXG59IGZyb20gJ0Bjb3JldWkvaWNvbnMnXG5pbXBvcnQgeyBDTmF2R3JvdXAsIENOYXZJdGVtLCBDTmF2VGl0bGUgfSBmcm9tICdAY29yZXVpL3JlYWN0J1xuXG5jb25zdCBfbmF2ID0gW1xuICB7XG4gICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICBuYW1lOiAnRGFzaGJvYXJkJyxcbiAgICB0bzogJy9kYXNoYm9hcmQnLFxuICAgIGljb246IDxDSWNvbiBpY29uPXtjaWxTcGVlZG9tZXRlcn0gY3VzdG9tQ2xhc3NOYW1lPVwibmF2LWljb25cIiAvPixcbiAgICBwZXJtaXNzaW9uS2V5OiAnZGFzaGJvYXJkLm1haW4nLFxuICB9LFxuICB7XG4gICAgY29tcG9uZW50OiBDTmF2VGl0bGUsXG4gICAgbmFtZTogJ0FkbWluaXN0cmFjaW9uJyxcbiAgfSxcbiAge1xuICAgIGNvbXBvbmVudDogQ05hdlRpdGxlLFxuICAgIG5hbWU6ICdDb250cmF0b3MnLFxuICB9LFxuICB7XG4gICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICBuYW1lOiAnQ29udHJhdG8gRW1wcmVzYScsXG4gICAgdG86ICcvY29udHJhdG9zLWVtcHJlc2EnLFxuICAgIGljb246IDxDSWNvbiBpY29uPXtjaWxEZXNjcmlwdGlvbn0gY3VzdG9tQ2xhc3NOYW1lPVwibmF2LWljb25cIiAvPixcbiAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5jb250cmF0b3NfZW1wcmVzYScsXG4gIH0sXG4gIHtcbiAgICBjb21wb25lbnQ6IENOYXZHcm91cCxcbiAgICBuYW1lOiAnR2VzdGlvbiBjb21lcmNpYWwnLFxuICAgIHRvOiAnL2NvbW1lcmNpYWwnLFxuICAgIGljb246IDxDSWNvbiBpY29uPXtjaWxCcmllZmNhc2V9IGN1c3RvbUNsYXNzTmFtZT1cIm5hdi1pY29uXCIgLz4sXG4gICAgLy8gQ29udHJvbGFkbyBwb3IgTWF0cml6IGRlIHBlcm1pc29zOiBcIlZpc3RhIE1hbnRlbmVkb3JlcyAobWVudSlcIlxuICAgIHBlcm1pc3Npb25LZXk6ICd1aS52aWV3X21hbnRlbmVkb3JlcycsXG4gICAgaXRlbXM6IFtcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgbmFtZTogJ0VtcHJlc2FzJyxcbiAgICAgICAgdG86ICcvY29tbWVyY2lhbC9lbXByZXNhcycsXG4gICAgICAgIGljb246IDxDSWNvbiBpY29uPXtjaWxCdWlsZGluZ30gY3VzdG9tQ2xhc3NOYW1lPVwibmF2LWljb25cIiAvPixcbiAgICAgICAgcGVybWlzc2lvbktleTogJ2NvbW1lcmNpYWwuZW1wcmVzYXMnLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgbmFtZTogJ0NvbnRhY3RvcycsXG4gICAgICAgIHRvOiAnL2NvbW1lcmNpYWwvY29udGFjdG9zJyxcbiAgICAgICAgaWNvbjogPENJY29uIGljb249e2NpbEFkZHJlc3NCb29rfSBjdXN0b21DbGFzc05hbWU9XCJuYXYtaWNvblwiIC8+LFxuICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5jb250YWN0b3MnLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgbmFtZTogJ0NvbnRyYXRvcycsXG4gICAgICAgIHRvOiAnL2NvbW1lcmNpYWwvY29udHJhdG9zX2VtcHJlc2EnLFxuICAgICAgICBpY29uOiA8Q0ljb24gaWNvbj17Y2lsRm9sZGVyfSBjdXN0b21DbGFzc05hbWU9XCJuYXYtaWNvblwiIC8+LFxuICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5jb250cmF0b3NfZW1wcmVzYScsXG4gICAgICB9LFxuICAgICAge1xuICAgICAgICBjb21wb25lbnQ6IENOYXZJdGVtLFxuICAgICAgICBuYW1lOiAnTGluZWFzJyxcbiAgICAgICAgdG86ICcvY29tbWVyY2lhbC9saW5lYXMnLFxuICAgICAgICBpY29uOiA8Q0ljb24gaWNvbj17Y2lsTGlzdH0gY3VzdG9tQ2xhc3NOYW1lPVwibmF2LWljb25cIiAvPixcbiAgICAgICAgcGVybWlzc2lvbktleTogJ2NvbW1lcmNpYWwubGluZWFzJyxcbiAgICAgIH0sXG4gICAgICB7XG4gICAgICAgIGNvbXBvbmVudDogQ05hdkl0ZW0sXG4gICAgICAgIG5hbWU6ICdDYXNvcycsXG4gICAgICAgIHRvOiAnL2NvbW1lcmNpYWwvY2Fzb3MnLFxuICAgICAgICBpY29uOiA8Q0ljb24gaWNvbj17Y2lsTm90ZXN9IGN1c3RvbUNsYXNzTmFtZT1cIm5hdi1pY29uXCIgLz4sXG4gICAgICAgIHBlcm1pc3Npb25LZXk6ICdjb21tZXJjaWFsLmNhc29zJyxcbiAgICAgIH0sXG4gICAgICB7XG4gICAgICAgIGNvbXBvbmVudDogQ05hdkl0ZW0sXG4gICAgICAgIG5hbWU6ICdEb2N1bWVudG9zJyxcbiAgICAgICAgdG86ICcvY29tbWVyY2lhbC9kb2N1bWVudG9zJyxcbiAgICAgICAgaWNvbjogPENJY29uIGljb249e2NpbEZpbGV9IGN1c3RvbUNsYXNzTmFtZT1cIm5hdi1pY29uXCIgLz4sXG4gICAgICAgIHBlcm1pc3Npb25LZXk6ICdjb21tZXJjaWFsLmRvY3VtZW50b3MnLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2R3JvdXAsXG4gICAgICAgIG5hbWU6ICdUYWJsYXMgbWFlc3RyYXMnLFxuICAgICAgICB0bzogJy9jb21tZXJjaWFsL21hc3RlcnMnLFxuICAgICAgICBpY29uOiA8Q0ljb24gaWNvbj17Y2lsSW5kdXN0cnl9IGN1c3RvbUNsYXNzTmFtZT1cIm5hdi1pY29uXCIgLz4sXG4gICAgICAgIGl0ZW1zOiBbXG4gICAgICAgICAge1xuICAgICAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgICAgIG5hbWU6ICdDYXRlZ29yaWFzJyxcbiAgICAgICAgICAgIHRvOiAnL2NvbW1lcmNpYWwvY2F0ZWdvcmlhcycsXG4gICAgICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5jYXRlZ29yaWFzJyxcbiAgICAgICAgICB9LFxuICAgICAgICAgIHtcbiAgICAgICAgICAgIGNvbXBvbmVudDogQ05hdkl0ZW0sXG4gICAgICAgICAgICBuYW1lOiAnVGlwb3MgY29udGFjdG8nLFxuICAgICAgICAgICAgdG86ICcvY29tbWVyY2lhbC90aXBvX2NvbnRhY3RvcycsXG4gICAgICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC50aXBvX2NvbnRhY3RvcycsXG4gICAgICAgICAgfSxcbiAgICAgICAgICB7XG4gICAgICAgICAgICBjb21wb25lbnQ6IENOYXZJdGVtLFxuICAgICAgICAgICAgbmFtZTogJ0VzdGFkb3MgY29udGFjdG8nLFxuICAgICAgICAgICAgdG86ICcvY29tbWVyY2lhbC9lc3RhZG9fY29udGFjdG9zJyxcbiAgICAgICAgICAgIHBlcm1pc3Npb25LZXk6ICdjb21tZXJjaWFsLmVzdGFkb19jb250YWN0b3MnLFxuICAgICAgICAgIH0sXG4gICAgICAgICAge1xuICAgICAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgICAgIG5hbWU6ICdFc3RhZG9zIHZpdGFsZXMnLFxuICAgICAgICAgICAgdG86ICcvY29tbWVyY2lhbC9lc3RhZG9fdml0YWxlcycsXG4gICAgICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5lc3RhZG9fdml0YWxlcycsXG4gICAgICAgICAgfSxcbiAgICAgICAgICB7XG4gICAgICAgICAgICBjb21wb25lbnQ6IENOYXZJdGVtLFxuICAgICAgICAgICAgbmFtZTogJ0VzdGFkb3MgY29udHJhdG8nLFxuICAgICAgICAgICAgdG86ICcvY29tbWVyY2lhbC9lc3RhZG9zX2N0cicsXG4gICAgICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5lc3RhZG9zX2N0cicsXG4gICAgICAgICAgfSxcbiAgICAgICAgICB7XG4gICAgICAgICAgICBjb21wb25lbnQ6IENOYXZJdGVtLFxuICAgICAgICAgICAgbmFtZTogJ1RpcG9zIHNlcnZpY2lvJyxcbiAgICAgICAgICAgIHRvOiAnL2NvbW1lcmNpYWwvdGlwb19zZXJ2aWNpb3MnLFxuICAgICAgICAgICAgcGVybWlzc2lvbktleTogJ2NvbW1lcmNpYWwudGlwb19zZXJ2aWNpb3MnLFxuICAgICAgICAgIH0sXG4gICAgICAgICAge1xuICAgICAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgICAgIG5hbWU6ICdUaXBvcyB0YXJpZmEnLFxuICAgICAgICAgICAgdG86ICcvY29tbWVyY2lhbC90aXBvX3RhcmlmYXMnLFxuICAgICAgICAgICAgcGVybWlzc2lvbktleTogJ2NvbW1lcmNpYWwudGlwb190YXJpZmFzJyxcbiAgICAgICAgICB9LFxuICAgICAgICAgIHtcbiAgICAgICAgICAgIGNvbXBvbmVudDogQ05hdkl0ZW0sXG4gICAgICAgICAgICBuYW1lOiAnRnJlY3VlbmNpYXMnLFxuICAgICAgICAgICAgdG86ICcvY29tbWVyY2lhbC9mcmVjdWVuY2lhcycsXG4gICAgICAgICAgICBwZXJtaXNzaW9uS2V5OiAnY29tbWVyY2lhbC5mcmVjdWVuY2lhcycsXG4gICAgICAgICAgfSxcbiAgICAgICAgXSxcbiAgICAgIH0sXG4gICAgXSxcbiAgfSxcbiAge1xuICAgIGNvbXBvbmVudDogQ05hdkdyb3VwLFxuICAgIG5hbWU6ICdVc3VhcmlvcycsXG4gICAgdG86ICcvYWRtaW4nLFxuICAgIGljb246IDxDSWNvbiBpY29uPXtjaWxQZW9wbGV9IGN1c3RvbUNsYXNzTmFtZT1cIm5hdi1pY29uXCIgLz4sXG4gICAgaXRlbXM6IFtcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgbmFtZTogJ0dlc3Rpb24gZGUgdXN1YXJpb3MnLFxuICAgICAgICB0bzogJy9hZG1pbi91c2VycycsXG4gICAgICAgIGljb246IDxDSWNvbiBpY29uPXtjaWxVc2VyfSBjdXN0b21DbGFzc05hbWU9XCJuYXYtaWNvblwiIC8+LFxuICAgICAgICBwZXJtaXNzaW9uS2V5OiAnYWRtaW4udXNlcnMnLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgbmFtZTogJ1JvbGVzJyxcbiAgICAgICAgdG86ICcvYWRtaW4vcm9sZXMnLFxuICAgICAgICBpY29uOiA8Q0ljb24gaWNvbj17Y2lsU2hpZWxkQWx0fSBjdXN0b21DbGFzc05hbWU9XCJuYXYtaWNvblwiIC8+LFxuICAgICAgICBwZXJtaXNzaW9uS2V5OiAnYWRtaW4ucm9sZXMnLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29tcG9uZW50OiBDTmF2SXRlbSxcbiAgICAgICAgbmFtZTogJ0F1ZGl0b3JpYScsXG4gICAgICAgIHRvOiAnL2FkbWluL2F1ZGl0JyxcbiAgICAgICAgaWNvbjogPENJY29uIGljb249e2NpbE5vdGVzfSBjdXN0b21DbGFzc05hbWU9XCJuYXYtaWNvblwiIC8+LFxuICAgICAgICBwZXJtaXNzaW9uS2V5OiAnYWRtaW4uYXVkaXQnLFxuICAgICAgfSxcbiAgICBdLFxuICB9LFxuXVxuXG5leHBvcnQgZGVmYXVsdCBfbmF2XG4iXSwibWFwcGluZ3MiOiJBQXdCVTtBQXhCVixPQUFPLFdB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

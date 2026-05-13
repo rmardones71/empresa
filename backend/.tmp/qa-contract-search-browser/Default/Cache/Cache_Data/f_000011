@@ -1,0 +1,491 @@
+import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=cac391c2"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import __vite__cjsImport1_react from "/node_modules/.vite/deps/react.js?v=cac391c2"; const React = __vite__cjsImport1_react.__esModule ? __vite__cjsImport1_react.default : __vite__cjsImport1_react; const useEffect = __vite__cjsImport1_react["useEffect"]; const useState = __vite__cjsImport1_react["useState"];
+import { Link } from "/node_modules/.vite/deps/react-router-dom.js?v=63eb4b90";
+import { CCol, CContainer, CRow } from "/node_modules/.vite/deps/@coreui_react.js?v=bf28b9d6";
+import CIcon from "/node_modules/.vite/deps/@coreui_icons-react.js?v=f206299a";
+import { cilChevronLeft, cilChevronRight, cilMediaPause, cilMediaPlay } from "/node_modules/.vite/deps/@coreui_icons.js?v=23b6742a";
+import ucmLogo from "/@fs/C:/aplicativos/oportunidades/Frontend/src/assets/images/brand/logo-ucm.png?import";
+import slideCare from "/@fs/C:/aplicativos/oportunidades/Frontend/src/assets/images/login/ucm-slide-1.jpg?import";
+import slideVir from "/@fs/C:/aplicativos/oportunidades/Frontend/src/assets/images/login/ucm-slide-2.jpg?import";
+import slideFleet from "/@fs/C:/aplicativos/oportunidades/Frontend/src/assets/images/login/ucm-slide-3.jpg?import";
+const loginSlides = [
+  { src: slideCare, alt: "Atención médica UCM en ambulancia" },
+  { src: slideVir, alt: "Vehículo de intervención rápida UCM" },
+  { src: slideFleet, alt: "Flota de ambulancias UCM" }
+];
+const floatingDots = [
+  { left: "10%", top: "18%", size: 4, delay: "0s", duration: "6.8s" },
+  { left: "18%", top: "72%", size: 3, delay: "0.7s", duration: "7.6s" },
+  { left: "27%", top: "34%", size: 5, delay: "1.1s", duration: "7.1s" },
+  { left: "36%", top: "86%", size: 3, delay: "0.3s", duration: "8.2s" },
+  { left: "47%", top: "16%", size: 4, delay: "1.6s", duration: "7.8s" },
+  { left: "58%", top: "62%", size: 5, delay: "0.9s", duration: "6.6s" },
+  { left: "69%", top: "28%", size: 3, delay: "1.9s", duration: "8.4s" },
+  { left: "78%", top: "78%", size: 4, delay: "0.5s", duration: "7.2s" },
+  { left: "88%", top: "45%", size: 5, delay: "1.4s", duration: "8s" },
+  { left: "93%", top: "13%", size: 3, delay: "1s", duration: "7.4s" }
+];
+const AuthSplitLayout = ({ children, showHomeLink = true }) => {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused) return void 0;
+    const timer = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % loginSlides.length);
+    }, 4200);
+    return () => window.clearInterval(timer);
+  }, [paused]);
+  const goToPreviousSlide = () => {
+    setActiveSlide((current) => current === 0 ? loginSlides.length - 1 : current - 1);
+  };
+  const goToNextSlide = () => {
+    setActiveSlide((current) => (current + 1) % loginSlides.length);
+  };
+  return /* @__PURE__ */ jsxDEV(
+    "div",
+    {
+      className: "min-vh-100 d-flex",
+      style: {
+        background: "linear-gradient(135deg, rgba(8, 33, 62, 0.1) 0%, rgba(8, 33, 62, 0.65) 100%), linear-gradient(160deg, #175b94 0%, #8fc1e8 43%, #183a63 100%)"
+      },
+      children: [
+        /* @__PURE__ */ jsxDEV("style", { children: `
+          @keyframes ucmFloatDot {
+            0%, 100% {
+              opacity: 0.25;
+              transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+            }
+            25% {
+              opacity: 0.78;
+              transform: translate3d(24px, -18px, 0) rotate(90deg) scale(1.28);
+            }
+            50% {
+              opacity: 0.95;
+              transform: translate3d(2px, -34px, 0) rotate(180deg) scale(1.48);
+            }
+            75% {
+              opacity: 0.62;
+              transform: translate3d(-24px, -16px, 0) rotate(270deg) scale(1.08);
+            }
+          }
+        ` }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+          lineNumber: 60,
+          columnNumber: 7
+        }, this),
+        /* @__PURE__ */ jsxDEV(CContainer, { fluid: true, className: "p-0", children: /* @__PURE__ */ jsxDEV(CRow, { className: "g-0 min-vh-100", children: [
+          /* @__PURE__ */ jsxDEV(CCol, { lg: 5, className: "d-flex align-items-center", children: /* @__PURE__ */ jsxDEV(
+            "div",
+            {
+              className: "w-100 bg-white",
+              style: {
+                minHeight: "100vh",
+                borderTopRightRadius: 34,
+                borderBottomRightRadius: 34,
+                boxShadow: "22px 0 54px rgba(4, 19, 41, 0.2)",
+                position: "relative",
+                zIndex: 2
+              },
+              children: /* @__PURE__ */ jsxDEV(
+                "div",
+                {
+                  className: "mx-auto d-flex flex-column justify-content-center h-100 px-4 py-5",
+                  style: { maxWidth: 430 },
+                  children: [
+                    showHomeLink && /* @__PURE__ */ jsxDEV(
+                      Link,
+                      {
+                        to: "/",
+                        className: "text-decoration-none text-uppercase mb-5",
+                        style: { color: "#49627f", fontSize: 12, fontWeight: 700, letterSpacing: 1.1 },
+                        children: "‹ Ir al inicio"
+                      },
+                      void 0,
+                      false,
+                      {
+                        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                        lineNumber: 101,
+                        columnNumber: 19
+                      },
+                      this
+                    ),
+                    /* @__PURE__ */ jsxDEV(
+                      "img",
+                      {
+                        src: ucmLogo,
+                        alt: "UCM - Unidad Coronaria Móvil",
+                        className: "mb-5",
+                        style: { width: "100%", maxWidth: 340, height: "auto" }
+                      },
+                      void 0,
+                      false,
+                      {
+                        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                        lineNumber: 110,
+                        columnNumber: 17
+                      },
+                      this
+                    ),
+                    children
+                  ]
+                },
+                void 0,
+                true,
+                {
+                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                  lineNumber: 96,
+                  columnNumber: 15
+                },
+                this
+              )
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+              lineNumber: 85,
+              columnNumber: 13
+            },
+            this
+          ) }, void 0, false, {
+            fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+            lineNumber: 84,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            CCol,
+            {
+              lg: 7,
+              className: "d-none d-lg-flex align-items-center justify-content-center position-relative overflow-hidden",
+              children: [
+                /* @__PURE__ */ jsxDEV(
+                  "div",
+                  {
+                    className: "position-absolute top-0 start-0 w-100 h-100",
+                    style: {
+                      background: "linear-gradient(135deg, rgba(8, 33, 62, 0.1) 0%, rgba(8, 33, 62, 0.65) 100%), linear-gradient(160deg, #175b94 0%, #8fc1e8 43%, #183a63 100%)"
+                    }
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                    lineNumber: 126,
+                    columnNumber: 13
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV(
+                  "div",
+                  {
+                    className: "position-absolute top-0 start-0 w-100 h-100",
+                    style: {
+                      backgroundImage: "radial-gradient(circle at 22% 24%, rgba(125, 211, 252, 0.34) 0 1px, transparent 2px), radial-gradient(circle at 72% 34%, rgba(255, 255, 255, 0.28) 0 1px, transparent 2px), radial-gradient(circle at 48% 78%, rgba(186, 230, 253, 0.26) 0 1px, transparent 2px)",
+                      backgroundSize: "92px 92px, 136px 136px, 168px 168px",
+                      opacity: 0.55
+                    }
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                    lineNumber: 133,
+                    columnNumber: 13
+                  },
+                  this
+                ),
+                floatingDots.map((dot, index) => /* @__PURE__ */ jsxDEV(
+                  "span",
+                  {
+                    className: "position-absolute rounded-circle",
+                    style: {
+                      left: dot.left,
+                      top: dot.top,
+                      width: dot.size,
+                      height: dot.size,
+                      background: "rgba(224, 247, 255, 0.92)",
+                      boxShadow: "0 0 16px rgba(125, 211, 252, 0.85)",
+                      animation: `ucmFloatDot ${dot.duration} ease-in-out ${dot.delay} infinite`,
+                      pointerEvents: "none"
+                    }
+                  },
+                  index,
+                  false,
+                  {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                    lineNumber: 143,
+                    columnNumber: 15
+                  },
+                  this
+                )),
+                /* @__PURE__ */ jsxDEV(
+                  "div",
+                  {
+                    className: "position-relative",
+                    style: {
+                      width: 390,
+                      borderRadius: 26,
+                      color: "#ffffff",
+                      background: "linear-gradient(180deg, rgba(35, 45, 61, 0.94) 0%, rgba(17, 18, 22, 0.98) 100%)",
+                      boxShadow: "0 28px 70px rgba(0, 0, 0, 0.42)",
+                      backdropFilter: "blur(12px)",
+                      padding: 18
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxDEV(
+                        "div",
+                        {
+                          className: "position-relative overflow-hidden mb-4",
+                          style: {
+                            height: 215,
+                            borderRadius: 18,
+                            background: "#07111f"
+                          },
+                          children: [
+                            loginSlides.map((slide, index) => /* @__PURE__ */ jsxDEV(
+                              "img",
+                              {
+                                src: slide.src,
+                                alt: slide.alt,
+                                className: "position-absolute top-0 start-0 w-100 h-100",
+                                style: {
+                                  objectFit: "cover",
+                                  opacity: activeSlide === index ? 1 : 0,
+                                  transform: activeSlide === index ? "scale(1)" : "scale(1.035)",
+                                  transition: "opacity 900ms ease, transform 4200ms ease"
+                                }
+                              },
+                              slide.src,
+                              false,
+                              {
+                                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                lineNumber: 181,
+                                columnNumber: 19
+                              },
+                              this
+                            )),
+                            /* @__PURE__ */ jsxDEV(
+                              "div",
+                              {
+                                className: "position-absolute top-0 start-0 w-100 h-100",
+                                style: {
+                                  background: "linear-gradient(180deg, rgba(5, 15, 30, 0) 0%, rgba(5, 15, 30, 0.18) 100%)"
+                                }
+                              },
+                              void 0,
+                              false,
+                              {
+                                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                lineNumber: 194,
+                                columnNumber: 17
+                              },
+                              this
+                            )
+                          ]
+                        },
+                        void 0,
+                        true,
+                        {
+                          fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                          lineNumber: 172,
+                          columnNumber: 15
+                        },
+                        this
+                      ),
+                      /* @__PURE__ */ jsxDEV("div", { className: "mb-2", style: { color: "#b9e4ff", fontSize: 13, fontWeight: 700 }, children: "Unidad Coronaria Móvil" }, void 0, false, {
+                        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                        lineNumber: 203,
+                        columnNumber: 15
+                      }, this),
+                      /* @__PURE__ */ jsxDEV("h2", { className: "mb-4", style: { fontSize: 27, lineHeight: 1.25, fontWeight: 650 }, children: "Respuesta médica cuando cada minuto importa" }, void 0, false, {
+                        fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                        lineNumber: 206,
+                        columnNumber: 15
+                      }, this),
+                      /* @__PURE__ */ jsxDEV(
+                        "div",
+                        {
+                          className: "d-flex align-items-center justify-content-between",
+                          style: {
+                            borderRadius: 12,
+                            background: "rgba(0, 0, 0, 0.44)",
+                            padding: "14px 16px"
+                          },
+                          children: [
+                            /* @__PURE__ */ jsxDEV("div", { className: "d-flex align-items-center gap-2", children: loginSlides.map((slide, index) => /* @__PURE__ */ jsxDEV(
+                              "button",
+                              {
+                                type: "button",
+                                "aria-label": `Ver imagen ${index + 1}`,
+                                onClick: () => setActiveSlide(index),
+                                className: "border-0 p-0",
+                                style: {
+                                  width: activeSlide === index ? 30 : 26,
+                                  height: 4,
+                                  borderRadius: 999,
+                                  background: activeSlide === index ? "#22d3ee" : "rgba(255,255,255,0.55)",
+                                  transition: "all 240ms ease"
+                                }
+                              },
+                              slide.src,
+                              false,
+                              {
+                                fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                lineNumber: 220,
+                                columnNumber: 21
+                              },
+                              this
+                            )) }, void 0, false, {
+                              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                              lineNumber: 218,
+                              columnNumber: 17
+                            }, this),
+                            /* @__PURE__ */ jsxDEV("div", { className: "d-flex align-items-center gap-2", children: [
+                              /* @__PURE__ */ jsxDEV(
+                                "button",
+                                {
+                                  type: "button",
+                                  "aria-label": "Imagen anterior",
+                                  onClick: goToPreviousSlide,
+                                  className: "d-inline-flex align-items-center justify-content-center rounded-circle",
+                                  style: {
+                                    width: 34,
+                                    height: 34,
+                                    border: "2px solid rgba(255,255,255,0.9)",
+                                    background: "rgba(255,255,255,0.04)",
+                                    color: "#ffffff"
+                                  },
+                                  children: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilChevronLeft }, void 0, false, {
+                                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                    lineNumber: 251,
+                                    columnNumber: 21
+                                  }, this)
+                                },
+                                void 0,
+                                false,
+                                {
+                                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                  lineNumber: 238,
+                                  columnNumber: 19
+                                },
+                                this
+                              ),
+                              /* @__PURE__ */ jsxDEV(
+                                "button",
+                                {
+                                  type: "button",
+                                  "aria-label": "Imagen siguiente",
+                                  onClick: goToNextSlide,
+                                  className: "d-inline-flex align-items-center justify-content-center rounded-circle",
+                                  style: {
+                                    width: 34,
+                                    height: 34,
+                                    border: "2px solid rgba(255,255,255,0.9)",
+                                    background: "rgba(255,255,255,0.04)",
+                                    color: "#ffffff"
+                                  },
+                                  children: /* @__PURE__ */ jsxDEV(CIcon, { icon: cilChevronRight }, void 0, false, {
+                                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                    lineNumber: 266,
+                                    columnNumber: 21
+                                  }, this)
+                                },
+                                void 0,
+                                false,
+                                {
+                                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                  lineNumber: 253,
+                                  columnNumber: 19
+                                },
+                                this
+                              ),
+                              /* @__PURE__ */ jsxDEV(
+                                "button",
+                                {
+                                  type: "button",
+                                  "aria-label": paused ? "Reproducir carrusel" : "Pausar carrusel",
+                                  onClick: () => setPaused((current) => !current),
+                                  className: "d-inline-flex align-items-center justify-content-center border-0",
+                                  style: {
+                                    width: 32,
+                                    height: 34,
+                                    background: "transparent",
+                                    color: "#ffffff"
+                                  },
+                                  children: /* @__PURE__ */ jsxDEV(CIcon, { icon: paused ? cilMediaPlay : cilMediaPause }, void 0, false, {
+                                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                    lineNumber: 280,
+                                    columnNumber: 21
+                                  }, this)
+                                },
+                                void 0,
+                                false,
+                                {
+                                  fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                                  lineNumber: 268,
+                                  columnNumber: 19
+                                },
+                                this
+                              )
+                            ] }, void 0, true, {
+                              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                              lineNumber: 237,
+                              columnNumber: 17
+                            }, this)
+                          ]
+                        },
+                        void 0,
+                        true,
+                        {
+                          fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                          lineNumber: 210,
+                          columnNumber: 15
+                        },
+                        this
+                      )
+                    ]
+                  },
+                  void 0,
+                  true,
+                  {
+                    fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+                    lineNumber: 159,
+                    columnNumber: 13
+                  },
+                  this
+                )
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+              lineNumber: 122,
+              columnNumber: 11
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+          lineNumber: 83,
+          columnNumber: 9
+        }, this) }, void 0, false, {
+          fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+          lineNumber: 82,
+          columnNumber: 7
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "C:/aplicativos/oportunidades/Frontend/src/components/AuthSplitLayout.js",
+      lineNumber: 53,
+      columnNumber: 5
+    },
+    this
+  );
+};
+export default AuthSplitLayout;
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkF1dGhTcGxpdExheW91dC5qcyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgdXNlRWZmZWN0LCB1c2VTdGF0ZSB9IGZyb20gJ3JlYWN0J1xuaW1wb3J0IHsgTGluayB9IGZyb20gJ3JlYWN0LXJvdXRlci1kb20nXG5pbXBvcnQgeyBDQ29sLCBDQ29udGFpbmVyLCBDUm93IH0gZnJvbSAnQGNvcmV1aS9yZWFjdCdcbmltcG9ydCBDSWNvbiBmcm9tICdAY29yZXVpL2ljb25zLXJlYWN0J1xuaW1wb3J0IHsgY2lsQ2hldnJvbkxlZnQsIGNpbENoZXZyb25SaWdodCwgY2lsTWVkaWFQYXVzZSwgY2lsTWVkaWFQbGF5IH0gZnJvbSAnQGNvcmV1aS9pY29ucydcbmltcG9ydCB1Y21Mb2dvIGZyb20gJ3NyYy9hc3NldHMvaW1hZ2VzL2JyYW5kL2xvZ28tdWNtLnBuZydcbmltcG9ydCBzbGlkZUNhcmUgZnJvbSAnc3JjL2Fzc2V0cy9pbWFnZXMvbG9naW4vdWNtLXNsaWRlLTEuanBnJ1xuaW1wb3J0IHNsaWRlVmlyIGZyb20gJ3NyYy9hc3NldHMvaW1hZ2VzL2xvZ2luL3VjbS1zbGlkZS0yLmpwZydcbmltcG9ydCBzbGlkZUZsZWV0IGZyb20gJ3NyYy9hc3NldHMvaW1hZ2VzL2xvZ2luL3VjbS1zbGlkZS0zLmpwZydcblxuY29uc3QgbG9naW5TbGlkZXMgPSBbXG4gIHsgc3JjOiBzbGlkZUNhcmUsIGFsdDogJ0F0ZW5jacOzbiBtw6lkaWNhIFVDTSBlbiBhbWJ1bGFuY2lhJyB9LFxuICB7IHNyYzogc2xpZGVWaXIsIGFsdDogJ1ZlaMOtY3VsbyBkZSBpbnRlcnZlbmNpw7NuIHLDoXBpZGEgVUNNJyB9LFxuICB7IHNyYzogc2xpZGVGbGVldCwgYWx0OiAnRmxvdGEgZGUgYW1idWxhbmNpYXMgVUNNJyB9LFxuXVxuXG5jb25zdCBmbG9hdGluZ0RvdHMgPSBbXG4gIHsgbGVmdDogJzEwJScsIHRvcDogJzE4JScsIHNpemU6IDQsIGRlbGF5OiAnMHMnLCBkdXJhdGlvbjogJzYuOHMnIH0sXG4gIHsgbGVmdDogJzE4JScsIHRvcDogJzcyJScsIHNpemU6IDMsIGRlbGF5OiAnMC43cycsIGR1cmF0aW9uOiAnNy42cycgfSxcbiAgeyBsZWZ0OiAnMjclJywgdG9wOiAnMzQlJywgc2l6ZTogNSwgZGVsYXk6ICcxLjFzJywgZHVyYXRpb246ICc3LjFzJyB9LFxuICB7IGxlZnQ6ICczNiUnLCB0b3A6ICc4NiUnLCBzaXplOiAzLCBkZWxheTogJzAuM3MnLCBkdXJhdGlvbjogJzguMnMnIH0sXG4gIHsgbGVmdDogJzQ3JScsIHRvcDogJzE2JScsIHNpemU6IDQsIGRlbGF5OiAnMS42cycsIGR1cmF0aW9uOiAnNy44cycgfSxcbiAgeyBsZWZ0OiAnNTglJywgdG9wOiAnNjIlJywgc2l6ZTogNSwgZGVsYXk6ICcwLjlzJywgZHVyYXRpb246ICc2LjZzJyB9LFxuICB7IGxlZnQ6ICc2OSUnLCB0b3A6ICcyOCUnLCBzaXplOiAzLCBkZWxheTogJzEuOXMnLCBkdXJhdGlvbjogJzguNHMnIH0sXG4gIHsgbGVmdDogJzc4JScsIHRvcDogJzc4JScsIHNpemU6IDQsIGRlbGF5OiAnMC41cycsIGR1cmF0aW9uOiAnNy4ycycgfSxcbiAgeyBsZWZ0OiAnODglJywgdG9wOiAnNDUlJywgc2l6ZTogNSwgZGVsYXk6ICcxLjRzJywgZHVyYXRpb246ICc4cycgfSxcbiAgeyBsZWZ0OiAnOTMlJywgdG9wOiAnMTMlJywgc2l6ZTogMywgZGVsYXk6ICcxcycsIGR1cmF0aW9uOiAnNy40cycgfSxcbl1cblxuY29uc3QgQXV0aFNwbGl0TGF5b3V0ID0gKHsgY2hpbGRyZW4sIHNob3dIb21lTGluayA9IHRydWUgfSkgPT4ge1xuICBjb25zdCBbYWN0aXZlU2xpZGUsIHNldEFjdGl2ZVNsaWRlXSA9IHVzZVN0YXRlKDApXG4gIGNvbnN0IFtwYXVzZWQsIHNldFBhdXNlZF0gPSB1c2VTdGF0ZShmYWxzZSlcblxuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIGlmIChwYXVzZWQpIHJldHVybiB1bmRlZmluZWRcblxuICAgIGNvbnN0IHRpbWVyID0gd2luZG93LnNldEludGVydmFsKCgpID0+IHtcbiAgICAgIHNldEFjdGl2ZVNsaWRlKChjdXJyZW50KSA9PiAoY3VycmVudCArIDEpICUgbG9naW5TbGlkZXMubGVuZ3RoKVxuICAgIH0sIDQyMDApXG5cbiAgICByZXR1cm4gKCkgPT4gd2luZG93LmNsZWFySW50ZXJ2YWwodGltZXIpXG4gIH0sIFtwYXVzZWRdKVxuXG4gIGNvbnN0IGdvVG9QcmV2aW91c1NsaWRlID0gKCkgPT4ge1xuICAgIHNldEFjdGl2ZVNsaWRlKChjdXJyZW50KSA9PiAoY3VycmVudCA9PT0gMCA/IGxvZ2luU2xpZGVzLmxlbmd0aCAtIDEgOiBjdXJyZW50IC0gMSkpXG4gIH1cblxuICBjb25zdCBnb1RvTmV4dFNsaWRlID0gKCkgPT4ge1xuICAgIHNldEFjdGl2ZVNsaWRlKChjdXJyZW50KSA9PiAoY3VycmVudCArIDEpICUgbG9naW5TbGlkZXMubGVuZ3RoKVxuICB9XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2XG4gICAgICBjbGFzc05hbWU9XCJtaW4tdmgtMTAwIGQtZmxleFwiXG4gICAgICBzdHlsZT17e1xuICAgICAgICBiYWNrZ3JvdW5kOlxuICAgICAgICAgICdsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCByZ2JhKDgsIDMzLCA2MiwgMC4xKSAwJSwgcmdiYSg4LCAzMywgNjIsIDAuNjUpIDEwMCUpLCBsaW5lYXItZ3JhZGllbnQoMTYwZGVnLCAjMTc1Yjk0IDAlLCAjOGZjMWU4IDQzJSwgIzE4M2E2MyAxMDAlKScsXG4gICAgICB9fVxuICAgID5cbiAgICAgIDxzdHlsZT5cbiAgICAgICAge2BcbiAgICAgICAgICBAa2V5ZnJhbWVzIHVjbUZsb2F0RG90IHtcbiAgICAgICAgICAgIDAlLCAxMDAlIHtcbiAgICAgICAgICAgICAgb3BhY2l0eTogMC4yNTtcbiAgICAgICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUzZCgwLCAwLCAwKSByb3RhdGUoMGRlZykgc2NhbGUoMSk7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgICAyNSUge1xuICAgICAgICAgICAgICBvcGFjaXR5OiAwLjc4O1xuICAgICAgICAgICAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZTNkKDI0cHgsIC0xOHB4LCAwKSByb3RhdGUoOTBkZWcpIHNjYWxlKDEuMjgpO1xuICAgICAgICAgICAgfVxuICAgICAgICAgICAgNTAlIHtcbiAgICAgICAgICAgICAgb3BhY2l0eTogMC45NTtcbiAgICAgICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUzZCgycHgsIC0zNHB4LCAwKSByb3RhdGUoMTgwZGVnKSBzY2FsZSgxLjQ4KTtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICAgIDc1JSB7XG4gICAgICAgICAgICAgIG9wYWNpdHk6IDAuNjI7XG4gICAgICAgICAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlM2QoLTI0cHgsIC0xNnB4LCAwKSByb3RhdGUoMjcwZGVnKSBzY2FsZSgxLjA4KTtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG4gICAgICAgIGB9XG4gICAgICA8L3N0eWxlPlxuICAgICAgPENDb250YWluZXIgZmx1aWQgY2xhc3NOYW1lPVwicC0wXCI+XG4gICAgICAgIDxDUm93IGNsYXNzTmFtZT1cImctMCBtaW4tdmgtMTAwXCI+XG4gICAgICAgICAgPENDb2wgbGc9ezV9IGNsYXNzTmFtZT1cImQtZmxleCBhbGlnbi1pdGVtcy1jZW50ZXJcIj5cbiAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy0xMDAgYmctd2hpdGVcIlxuICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgIG1pbkhlaWdodDogJzEwMHZoJyxcbiAgICAgICAgICAgICAgICBib3JkZXJUb3BSaWdodFJhZGl1czogMzQsXG4gICAgICAgICAgICAgICAgYm9yZGVyQm90dG9tUmlnaHRSYWRpdXM6IDM0LFxuICAgICAgICAgICAgICAgIGJveFNoYWRvdzogJzIycHggMCA1NHB4IHJnYmEoNCwgMTksIDQxLCAwLjIpJyxcbiAgICAgICAgICAgICAgICBwb3NpdGlvbjogJ3JlbGF0aXZlJyxcbiAgICAgICAgICAgICAgICB6SW5kZXg6IDIsXG4gICAgICAgICAgICAgIH19XG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJteC1hdXRvIGQtZmxleCBmbGV4LWNvbHVtbiBqdXN0aWZ5LWNvbnRlbnQtY2VudGVyIGgtMTAwIHB4LTQgcHktNVwiXG4gICAgICAgICAgICAgICAgc3R5bGU9e3sgbWF4V2lkdGg6IDQzMCB9fVxuICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAge3Nob3dIb21lTGluayAmJiAoXG4gICAgICAgICAgICAgICAgICA8TGlua1xuICAgICAgICAgICAgICAgICAgICB0bz1cIi9cIlxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ0ZXh0LWRlY29yYXRpb24tbm9uZSB0ZXh0LXVwcGVyY2FzZSBtYi01XCJcbiAgICAgICAgICAgICAgICAgICAgc3R5bGU9e3sgY29sb3I6ICcjNDk2MjdmJywgZm9udFNpemU6IDEyLCBmb250V2VpZ2h0OiA3MDAsIGxldHRlclNwYWNpbmc6IDEuMSB9fVxuICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICDigLkgSXIgYWwgaW5pY2lvXG4gICAgICAgICAgICAgICAgICA8L0xpbms+XG4gICAgICAgICAgICAgICAgKX1cblxuICAgICAgICAgICAgICAgIDxpbWdcbiAgICAgICAgICAgICAgICAgIHNyYz17dWNtTG9nb31cbiAgICAgICAgICAgICAgICAgIGFsdD1cIlVDTSAtIFVuaWRhZCBDb3JvbmFyaWEgTcOzdmlsXCJcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cIm1iLTVcIlxuICAgICAgICAgICAgICAgICAgc3R5bGU9e3sgd2lkdGg6ICcxMDAlJywgbWF4V2lkdGg6IDM0MCwgaGVpZ2h0OiAnYXV0bycgfX1cbiAgICAgICAgICAgICAgICAvPlxuXG4gICAgICAgICAgICAgICAge2NoaWxkcmVufVxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvQ0NvbD5cblxuICAgICAgICAgIDxDQ29sXG4gICAgICAgICAgICBsZz17N31cbiAgICAgICAgICAgIGNsYXNzTmFtZT1cImQtbm9uZSBkLWxnLWZsZXggYWxpZ24taXRlbXMtY2VudGVyIGp1c3RpZnktY29udGVudC1jZW50ZXIgcG9zaXRpb24tcmVsYXRpdmUgb3ZlcmZsb3ctaGlkZGVuXCJcbiAgICAgICAgICA+XG4gICAgICAgICAgICA8ZGl2XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT1cInBvc2l0aW9uLWFic29sdXRlIHRvcC0wIHN0YXJ0LTAgdy0xMDAgaC0xMDBcIlxuICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6XG4gICAgICAgICAgICAgICAgICAnbGluZWFyLWdyYWRpZW50KDEzNWRlZywgcmdiYSg4LCAzMywgNjIsIDAuMSkgMCUsIHJnYmEoOCwgMzMsIDYyLCAwLjY1KSAxMDAlKSwgbGluZWFyLWdyYWRpZW50KDE2MGRlZywgIzE3NWI5NCAwJSwgIzhmYzFlOCA0MyUsICMxODNhNjMgMTAwJSknLFxuICAgICAgICAgICAgICB9fVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicG9zaXRpb24tYWJzb2x1dGUgdG9wLTAgc3RhcnQtMCB3LTEwMCBoLTEwMFwiXG4gICAgICAgICAgICAgIHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgYmFja2dyb3VuZEltYWdlOlxuICAgICAgICAgICAgICAgICAgJ3JhZGlhbC1ncmFkaWVudChjaXJjbGUgYXQgMjIlIDI0JSwgcmdiYSgxMjUsIDIxMSwgMjUyLCAwLjM0KSAwIDFweCwgdHJhbnNwYXJlbnQgMnB4KSwgcmFkaWFsLWdyYWRpZW50KGNpcmNsZSBhdCA3MiUgMzQlLCByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMjgpIDAgMXB4LCB0cmFuc3BhcmVudCAycHgpLCByYWRpYWwtZ3JhZGllbnQoY2lyY2xlIGF0IDQ4JSA3OCUsIHJnYmEoMTg2LCAyMzAsIDI1MywgMC4yNikgMCAxcHgsIHRyYW5zcGFyZW50IDJweCknLFxuICAgICAgICAgICAgICAgIGJhY2tncm91bmRTaXplOiAnOTJweCA5MnB4LCAxMzZweCAxMzZweCwgMTY4cHggMTY4cHgnLFxuICAgICAgICAgICAgICAgIG9wYWNpdHk6IDAuNTUsXG4gICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAvPlxuICAgICAgICAgICAge2Zsb2F0aW5nRG90cy5tYXAoKGRvdCwgaW5kZXgpID0+IChcbiAgICAgICAgICAgICAgPHNwYW5cbiAgICAgICAgICAgICAgICBrZXk9e2luZGV4fVxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInBvc2l0aW9uLWFic29sdXRlIHJvdW5kZWQtY2lyY2xlXCJcbiAgICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgICAgbGVmdDogZG90LmxlZnQsXG4gICAgICAgICAgICAgICAgICB0b3A6IGRvdC50b3AsXG4gICAgICAgICAgICAgICAgICB3aWR0aDogZG90LnNpemUsXG4gICAgICAgICAgICAgICAgICBoZWlnaHQ6IGRvdC5zaXplLFxuICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogJ3JnYmEoMjI0LCAyNDcsIDI1NSwgMC45MiknLFxuICAgICAgICAgICAgICAgICAgYm94U2hhZG93OiAnMCAwIDE2cHggcmdiYSgxMjUsIDIxMSwgMjUyLCAwLjg1KScsXG4gICAgICAgICAgICAgICAgICBhbmltYXRpb246IGB1Y21GbG9hdERvdCAke2RvdC5kdXJhdGlvbn0gZWFzZS1pbi1vdXQgJHtkb3QuZGVsYXl9IGluZmluaXRlYCxcbiAgICAgICAgICAgICAgICAgIHBvaW50ZXJFdmVudHM6ICdub25lJyxcbiAgICAgICAgICAgICAgICB9fVxuICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgKSl9XG5cbiAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicG9zaXRpb24tcmVsYXRpdmVcIlxuICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgIHdpZHRoOiAzOTAsXG4gICAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiAyNixcbiAgICAgICAgICAgICAgICBjb2xvcjogJyNmZmZmZmYnLFxuICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6XG4gICAgICAgICAgICAgICAgICAnbGluZWFyLWdyYWRpZW50KDE4MGRlZywgcmdiYSgzNSwgNDUsIDYxLCAwLjk0KSAwJSwgcmdiYSgxNywgMTgsIDIyLCAwLjk4KSAxMDAlKScsXG4gICAgICAgICAgICAgICAgYm94U2hhZG93OiAnMCAyOHB4IDcwcHggcmdiYSgwLCAwLCAwLCAwLjQyKScsXG4gICAgICAgICAgICAgICAgYmFja2Ryb3BGaWx0ZXI6ICdibHVyKDEycHgpJyxcbiAgICAgICAgICAgICAgICBwYWRkaW5nOiAxOCxcbiAgICAgICAgICAgICAgfX1cbiAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgPGRpdlxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInBvc2l0aW9uLXJlbGF0aXZlIG92ZXJmbG93LWhpZGRlbiBtYi00XCJcbiAgICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgICAgaGVpZ2h0OiAyMTUsXG4gICAgICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IDE4LFxuICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogJyMwNzExMWYnLFxuICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICB7bG9naW5TbGlkZXMubWFwKChzbGlkZSwgaW5kZXgpID0+IChcbiAgICAgICAgICAgICAgICAgIDxpbWdcbiAgICAgICAgICAgICAgICAgICAga2V5PXtzbGlkZS5zcmN9XG4gICAgICAgICAgICAgICAgICAgIHNyYz17c2xpZGUuc3JjfVxuICAgICAgICAgICAgICAgICAgICBhbHQ9e3NsaWRlLmFsdH1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicG9zaXRpb24tYWJzb2x1dGUgdG9wLTAgc3RhcnQtMCB3LTEwMCBoLTEwMFwiXG4gICAgICAgICAgICAgICAgICAgIHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgICAgICAgb2JqZWN0Rml0OiAnY292ZXInLFxuICAgICAgICAgICAgICAgICAgICAgIG9wYWNpdHk6IGFjdGl2ZVNsaWRlID09PSBpbmRleCA/IDEgOiAwLFxuICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybTogYWN0aXZlU2xpZGUgPT09IGluZGV4ID8gJ3NjYWxlKDEpJyA6ICdzY2FsZSgxLjAzNSknLFxuICAgICAgICAgICAgICAgICAgICAgIHRyYW5zaXRpb246ICdvcGFjaXR5IDkwMG1zIGVhc2UsIHRyYW5zZm9ybSA0MjAwbXMgZWFzZScsXG4gICAgICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICAgICkpfVxuICAgICAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cInBvc2l0aW9uLWFic29sdXRlIHRvcC0wIHN0YXJ0LTAgdy0xMDAgaC0xMDBcIlxuICAgICAgICAgICAgICAgICAgc3R5bGU9e3tcbiAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDpcbiAgICAgICAgICAgICAgICAgICAgICAnbGluZWFyLWdyYWRpZW50KDE4MGRlZywgcmdiYSg1LCAxNSwgMzAsIDApIDAlLCByZ2JhKDUsIDE1LCAzMCwgMC4xOCkgMTAwJSknLFxuICAgICAgICAgICAgICAgICAgfX1cbiAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1iLTJcIiBzdHlsZT17eyBjb2xvcjogJyNiOWU0ZmYnLCBmb250U2l6ZTogMTMsIGZvbnRXZWlnaHQ6IDcwMCB9fT5cbiAgICAgICAgICAgICAgICBVbmlkYWQgQ29yb25hcmlhIE3Ds3ZpbFxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPGgyIGNsYXNzTmFtZT1cIm1iLTRcIiBzdHlsZT17eyBmb250U2l6ZTogMjcsIGxpbmVIZWlnaHQ6IDEuMjUsIGZvbnRXZWlnaHQ6IDY1MCB9fT5cbiAgICAgICAgICAgICAgICBSZXNwdWVzdGEgbcOpZGljYSBjdWFuZG8gY2FkYSBtaW51dG8gaW1wb3J0YVxuICAgICAgICAgICAgICA8L2gyPlxuXG4gICAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJkLWZsZXggYWxpZ24taXRlbXMtY2VudGVyIGp1c3RpZnktY29udGVudC1iZXR3ZWVuXCJcbiAgICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiAxMixcbiAgICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6ICdyZ2JhKDAsIDAsIDAsIDAuNDQpJyxcbiAgICAgICAgICAgICAgICAgIHBhZGRpbmc6ICcxNHB4IDE2cHgnLFxuICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImQtZmxleCBhbGlnbi1pdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICAgICAgICAgIHtsb2dpblNsaWRlcy5tYXAoKHNsaWRlLCBpbmRleCkgPT4gKFxuICAgICAgICAgICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgICAgICAgICAga2V5PXtzbGlkZS5zcmN9XG4gICAgICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICAgICAgYXJpYS1sYWJlbD17YFZlciBpbWFnZW4gJHtpbmRleCArIDF9YH1cbiAgICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRBY3RpdmVTbGlkZShpbmRleCl9XG4gICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiYm9yZGVyLTAgcC0wXCJcbiAgICAgICAgICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgICAgICAgICAgd2lkdGg6IGFjdGl2ZVNsaWRlID09PSBpbmRleCA/IDMwIDogMjYsXG4gICAgICAgICAgICAgICAgICAgICAgICBoZWlnaHQ6IDQsXG4gICAgICAgICAgICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IDk5OSxcbiAgICAgICAgICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6IGFjdGl2ZVNsaWRlID09PSBpbmRleCA/ICcjMjJkM2VlJyA6ICdyZ2JhKDI1NSwyNTUsMjU1LDAuNTUpJyxcbiAgICAgICAgICAgICAgICAgICAgICAgIHRyYW5zaXRpb246ICdhbGwgMjQwbXMgZWFzZScsXG4gICAgICAgICAgICAgICAgICAgICAgfX1cbiAgICAgICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgICAgICkpfVxuICAgICAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJkLWZsZXggYWxpZ24taXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgICAgICBhcmlhLWxhYmVsPVwiSW1hZ2VuIGFudGVyaW9yXCJcbiAgICAgICAgICAgICAgICAgICAgb25DbGljaz17Z29Ub1ByZXZpb3VzU2xpZGV9XG4gICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cImQtaW5saW5lLWZsZXggYWxpZ24taXRlbXMtY2VudGVyIGp1c3RpZnktY29udGVudC1jZW50ZXIgcm91bmRlZC1jaXJjbGVcIlxuICAgICAgICAgICAgICAgICAgICBzdHlsZT17e1xuICAgICAgICAgICAgICAgICAgICAgIHdpZHRoOiAzNCxcbiAgICAgICAgICAgICAgICAgICAgICBoZWlnaHQ6IDM0LFxuICAgICAgICAgICAgICAgICAgICAgIGJvcmRlcjogJzJweCBzb2xpZCByZ2JhKDI1NSwyNTUsMjU1LDAuOSknLFxuICAgICAgICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6ICdyZ2JhKDI1NSwyNTUsMjU1LDAuMDQpJyxcbiAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogJyNmZmZmZmYnLFxuICAgICAgICAgICAgICAgICAgICB9fVxuICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICA8Q0ljb24gaWNvbj17Y2lsQ2hldnJvbkxlZnR9IC8+XG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICAgIGFyaWEtbGFiZWw9XCJJbWFnZW4gc2lndWllbnRlXCJcbiAgICAgICAgICAgICAgICAgICAgb25DbGljaz17Z29Ub05leHRTbGlkZX1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiZC1pbmxpbmUtZmxleCBhbGlnbi1pdGVtcy1jZW50ZXIganVzdGlmeS1jb250ZW50LWNlbnRlciByb3VuZGVkLWNpcmNsZVwiXG4gICAgICAgICAgICAgICAgICAgIHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgICAgICAgd2lkdGg6IDM0LFxuICAgICAgICAgICAgICAgICAgICAgIGhlaWdodDogMzQsXG4gICAgICAgICAgICAgICAgICAgICAgYm9yZGVyOiAnMnB4IHNvbGlkIHJnYmEoMjU1LDI1NSwyNTUsMC45KScsXG4gICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogJ3JnYmEoMjU1LDI1NSwyNTUsMC4wNCknLFxuICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiAnI2ZmZmZmZicsXG4gICAgICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgIDxDSWNvbiBpY29uPXtjaWxDaGV2cm9uUmlnaHR9IC8+XG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICAgIGFyaWEtbGFiZWw9e3BhdXNlZCA/ICdSZXByb2R1Y2lyIGNhcnJ1c2VsJyA6ICdQYXVzYXIgY2FycnVzZWwnfVxuICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRQYXVzZWQoKGN1cnJlbnQpID0+ICFjdXJyZW50KX1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiZC1pbmxpbmUtZmxleCBhbGlnbi1pdGVtcy1jZW50ZXIganVzdGlmeS1jb250ZW50LWNlbnRlciBib3JkZXItMFwiXG4gICAgICAgICAgICAgICAgICAgIHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgICAgICAgd2lkdGg6IDMyLFxuICAgICAgICAgICAgICAgICAgICAgIGhlaWdodDogMzQsXG4gICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogJ3RyYW5zcGFyZW50JyxcbiAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogJyNmZmZmZmYnLFxuICAgICAgICAgICAgICAgICAgICB9fVxuICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICA8Q0ljb24gaWNvbj17cGF1c2VkID8gY2lsTWVkaWFQbGF5IDogY2lsTWVkaWFQYXVzZX0gLz5cbiAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvQ0NvbD5cbiAgICAgICAgPC9DUm93PlxuICAgICAgPC9DQ29udGFpbmVyPlxuICAgIDwvZGl2PlxuICApXG59XG5cbmV4cG9ydCBkZWZhdWx0IEF1dGhTcGxpdExheW91dFxuIl0sIm1hcHBpbmdzIjoiQUEyRE07QUEzRE4sT0FBTyxTQUFTLFdBQVcsZ0JBQWdCO0FBQzNDLFNBQVMsWUFBWTtBQUNyQixTQUFTLE1BQU0sWUFBWSxZQUFZO0FBQ3ZDLE9BQU8sV0FBVztBQUNsQixTQUFTLGdCQUFnQixpQkFBaUIsZUFBZSxvQkFBb0I7QUFDN0UsT0FBTyxhQUFhO0FBQ3BCLE9BQU8sZUFBZTtBQUN0QixPQUFPLGNBQWM7QUFDckIsT0FBTyxnQkFBZ0I7QUFFdkIsTUFBTSxjQUFjO0FBQUEsRUFDbEIsRUFBRSxLQUFLLFdBQVcsS0FBSyxvQ0FBb0M7QUFBQSxFQUMzRCxFQUFFLEtBQUssVUFBVSxLQUFLLHNDQUFzQztBQUFBLEVBQzVELEVBQUUsS0FBSyxZQUFZLEtBQUssMkJBQTJCO0FBQ3JEO0FBRUEsTUFBTSxlQUFlO0FBQUEsRUFDbkIsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLE1BQU0sVUFBVSxPQUFPO0FBQUEsRUFDbEUsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLFFBQVEsVUFBVSxPQUFPO0FBQUEsRUFDcEUsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLFFBQVEsVUFBVSxPQUFPO0FBQUEsRUFDcEUsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLFFBQVEsVUFBVSxPQUFPO0FBQUEsRUFDcEUsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLFFBQVEsVUFBVSxPQUFPO0FBQUEsRUFDcEUsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLFFBQVEsVUFBVSxPQUFPO0FBQUEsRUFDcEUsRUFBRSxNQUFNLE9BQU8sS0FBSyxPQUFPLE1BQU0sR0FBRyxPQUFPLFFBQVEs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

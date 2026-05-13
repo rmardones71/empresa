@@ -1,0 +1,54 @@
+{
+  "name": "columntypes",
+  "description": "Column types demo (React)",
+  "version": "7.2.4",
+  "author": {
+    "name": "Bryntum",
+    "url": "https://bryntum.com",
+    "email": "info@bryntum.com"
+  },
+  "license": "commercial",
+  "homepage": "./",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "postinstall": "postinstall"
+  },
+  "postinstall": {
+    "node_modules/@bryntum/demo-resources/images/favicon.png": "copy public/favicon.png",
+    "node_modules/@bryntum/grid/fontawesome/**": "copy public/themes/fontawesome/",
+    "node_modules/@bryntum/grid/*.css*": "copy public/themes/"
+  },
+  "dependencies": {
+    "@bryntum/demo-resources": "7.2.4",
+    "@bryntum/grid": "npm:@bryntum/grid-trial@7.2.4",
+    "@bryntum/grid-react": "7.2.4",
+    "react": "18.1.0",
+    "react-dom": "18.1.0",
+    "react-scripts": "3.4.4"
+  },
+  "devDependencies": {
+    "postinstall": "0.7.4",
+    "sass": "1.42.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  }
+}

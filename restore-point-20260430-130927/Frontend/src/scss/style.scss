@@ -1,0 +1,290 @@
+@use "@coreui/coreui/scss/coreui" as * with ( 
+  $enable-deprecation-messages: false,
+);
+@use "@coreui/chartjs/scss/coreui-chartjs";
+@use "vendors/simplebar";
+
+body {
+  background-color: var(--cui-tertiary-bg);
+}
+
+// macOS-like light theme polish (default)
+body {
+  background: #0b1220;
+  font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.card {
+  border-radius: 16px;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 5;
+}
+
+.btn {
+  border-radius: 12px;
+}
+
+.dropdown-menu {
+  border-radius: 14px;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+}
+
+.form-control,
+.form-select {
+  border-radius: 12px;
+}
+
+.table {
+  --cui-table-border-color: rgba(0, 0, 0, 0.08);
+}
+
+// macOS-like table/grid
+.table-responsive {
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  overflow: auto;
+}
+
+.macos-grid {
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.table-responsive .table {
+  table-layout: fixed;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.table-responsive .table th,
+.table-responsive .table td {
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-responsive .actions-cell {
+  overflow: visible;
+  text-overflow: initial;
+}
+
+.macos-grid .table {
+  table-layout: fixed;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.macos-grid .table th,
+.macos-grid .table td {
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.macos-grid .table td .btn {
+  border-radius: 999px;
+}
+
+.macos-grid .actions-cell {
+  overflow: visible;
+  text-overflow: initial;
+}
+
+// Kanban
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.kanban-col {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  min-height: 520px;
+}
+
+.kanban-col-header {
+  padding: 12px 12px 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.kanban-col-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kanban-card {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  padding: 10px 12px;
+  cursor: grab;
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.kanban-card-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+
+.kanban-card-sub {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 8px;
+}
+
+.kanban-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.kanban-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.table {
+  margin-bottom: 0;
+  --cui-table-color: #1d1d1f;
+  --cui-table-striped-bg: rgba(0, 0, 0, 0.02);
+  --cui-table-hover-bg: rgba(0, 0, 0, 0.03);
+}
+
+.table thead th {
+  font-weight: 600;
+  color: #1d1d1f;
+  background: rgba(245, 245, 247, 0.9);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.table tbody td {
+  vertical-align: middle;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.table tbody tr:hover td {
+  transition: background-color 120ms ease;
+}
+
+.table td,
+.table th {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.table td .btn {
+  border-radius: 999px;
+}
+
+.table td.actions-cell {
+  white-space: nowrap;
+}
+
+.table td .btn svg {
+  margin-top: -1px;
+}
+
+.wrapper {
+  width: 100%;
+  padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
+  will-change: auto;
+  @include transition(padding .15s);
+}
+
+// Grid container breathing room
+.body .container-lg,
+.body .container-fluid,
+.body .container {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  max-width: 100% !important;
+}
+
+.header > .container-fluid,
+.sidebar-header {
+  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+.sidebar-brand-full {
+  margin-left: 3px;
+}
+
+.sidebar-header {
+  .nav-underline-border {
+    --cui-nav-underline-border-link-padding-x: 1rem;
+    --cui-nav-underline-border-gap: 0;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+  }
+}
+
+.sidebar-toggler {
+  margin-inline-start: auto;
+}
+
+.sidebar-narrow,
+.sidebar-narrow-unfoldable:not(:hover) {
+  .sidebar-toggler {
+    margin-inline-end: auto;
+  }
+}
+
+.header > .container-fluid + .container-fluid {
+  min-height: 3rem;
+}
+
+.footer {
+  min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+@include color-mode(dark) {
+  body {
+    background-color: var(--cui-dark-bg-subtle);
+  }
+
+  .footer {
+    --cui-footer-bg: var(--cui-body-bg);
+  }
+}

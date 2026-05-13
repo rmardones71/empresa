@@ -1,0 +1,13 @@
+{
+  "title": "Column types demo (React)",
+  "description": "Shows how to create a custom column type and how to use the different built-in types: Text (no type specified), Check, Date, Percent, Rating, Template & Widget",
+  "source": [
+    "package.json",
+    "public/index.html",
+    "public/manifest.json",
+    "src/App.js",
+    "src/App.scss",
+    "src/AppConfig.js",
+    "src/index.js"
+  ]
+}
