@@ -44,7 +44,7 @@ const AppContent = () => {
   const user = useSelector((s) => s.auth.user)
 
   return (
-    <CContainer className="px-4" lg>
+    <CContainer className="app-content-container px-4" fluid>
       <Suspense fallback={<CSpinner color="primary" />}>
         <Routes>
           {routes.map((route, idx) => {
