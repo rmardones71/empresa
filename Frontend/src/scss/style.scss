@@ -798,7 +798,16 @@ body {
 .commercial-export-button:focus,
 .toolbar-export-button:hover,
 .toolbar-export-button:focus {
-  background: rgba(35, 75, 130, 0.06) !important;
+  background: var(--ucmcrm-primary) !important;
+  border-color: var(--ucmcrm-primary) !important;
+  color: #fff !important;
+}
+
+.commercial-export-button:hover svg,
+.commercial-export-button:focus svg,
+.toolbar-export-button:hover svg,
+.toolbar-export-button:focus svg {
+  color: #fff !important;
 }
 
 .commercial-tabs {
@@ -1860,7 +1869,19 @@ body {
 }
 
 .grid-column-picker-toggle {
+  background: var(--ucmcrm-primary) !important;
+  border-color: var(--ucmcrm-primary) !important;
+  color: #fff !important;
+  font-weight: 700;
   min-height: 36px;
+}
+
+.grid-column-picker-toggle:hover,
+.grid-column-picker-toggle:focus,
+.grid-column-picker-toggle.show {
+  background: var(--ucmcrm-primary-strong) !important;
+  border-color: var(--ucmcrm-primary-strong) !important;
+  color: #fff !important;
 }
 
 .grid-column-picker-menu {
@@ -2509,8 +2530,14 @@ body {
 
 .contract-header-button-export:hover,
 .contract-header-button-export:focus {
-  background: rgba(35, 75, 130, 0.06) !important;
-  border-color: rgba(132, 152, 181, 0.95) !important;
+  background: #234b82 !important;
+  border-color: #234b82 !important;
+  color: #fff !important;
+}
+
+.contract-header-button-export:hover svg,
+.contract-header-button-export:focus svg {
+  color: #fff !important;
 }
 
 .contract-header-button-delete {
