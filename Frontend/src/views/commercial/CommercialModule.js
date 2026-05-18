@@ -82,9 +82,15 @@ import ExportModal from 'src/components/ExportModal'
 import GridPaginationBar from 'src/components/GridPaginationBar'
 import MacDateInput from 'src/components/MacDateInput'
 import SortableTableHeader from 'src/components/SortableTableHeader'
-import { buildDateRangeParams, exportToPdf, exportToXlsx, canExportExcelPdf } from 'src/utils/export'
+import {
+  buildDateRangeParams,
+  exportToPdf,
+  exportToXlsx,
+  canExportExcelPdf,
+} from 'src/utils/export'
 import { runOnEnter } from 'src/utils/gridKeyboard'
 import { scheduleFocusFirstField, handleEnterToNextField } from 'src/utils/formNavigation'
+import { downloadAttachment, getAttachmentUrl } from 'src/utils/attachments'
 import { chileRegions, getCiudadesByRegion, getComunasByCity } from './chileLocations'
 import { auditFields, getFieldLabel, resourceOrder, resources } from './commercialConfig'
 import { formatRut, getRutStatus } from './rutChile'
@@ -122,7 +128,11 @@ const normalizeDateValue = (value, type) => {
   return value
 }
 
-const normalizeSearchQuery = (value) => String(value || '').trim().replace(/\s+/g, ' ').slice(0, 120)
+const normalizeSearchQuery = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 120)
 
 const amountFields = new Set(['tarifa_fija', 'tarifa_variable'])
 
@@ -320,7 +330,7 @@ const formatFieldValue = (fieldName, value) => {
   return formatValue(value)
 }
 
-const renderListValue = (fieldName, value, row = {}) => {
+const renderListValue = (fieldName, value, row = {}, onDownloadError) => {
   if (fieldName === 'activo') {
     return (
       <span className={`macos-status-pill ${value ? 'is-active' : 'is-inactive'}`}>
@@ -329,17 +339,20 @@ const renderListValue = (fieldName, value, row = {}) => {
     )
   }
   if (['adjuntos', 'archivo'].includes(fieldName)) {
-    if (!value) return '-'
+    if (!getAttachmentUrl(value)) return '-'
     return (
       <CButton
-        as="a"
-        href={String(value)}
-        target="_blank"
-        rel="noopener noreferrer"
+        type="button"
         size="sm"
         color="secondary"
         variant="outline"
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          event.preventDefault()
+          downloadAttachment(value).catch((error) => {
+            onDownloadError?.(error)
+          })
+        }}
       >
         <CIcon icon={cilCloudDownload} className="me-1" />
         Bajar
@@ -369,7 +382,8 @@ const CommercialModule = () => {
   const canRead = hasPermission(user, moduleKey, 'read')
   const canWrite = hasPermission(user, moduleKey, 'write')
   const canDelete = hasPermission(user, moduleKey, 'delete')
-  const canHardDelete = resourceKey === 'contratos_empresa' ? canDelete && isSecurityAdmin(user?.role) : canDelete
+  const canHardDelete =
+    resourceKey === 'contratos_empresa' ? canDelete && isSecurityAdmin(user?.role) : canDelete
   const canExport = canExportExcelPdf(user)
   const columnsStorageKey = `crm_commercial_${resourceKey}_grid_columns_v1`
 
@@ -449,7 +463,9 @@ const CommercialModule = () => {
       setModalMode(null)
       try {
         const raw = window.localStorage.getItem(`crm_commercial_${resourceKey}_grid_columns_v1`)
-        setVisibleColumns(raw ? { ...defaultVisibleColumns, ...JSON.parse(raw) } : defaultVisibleColumns)
+        setVisibleColumns(
+          raw ? { ...defaultVisibleColumns, ...JSON.parse(raw) } : defaultVisibleColumns,
+        )
       } catch (error) {
         setVisibleColumns(defaultVisibleColumns)
       }
@@ -498,7 +514,8 @@ const CommercialModule = () => {
 
   const isColumnVisible = (key) => visibleColumns[key] !== false
 
-  const getVisibleExportColumns = () => columns.filter((column) => column.key !== 'actions' && isColumnVisible(column.key))
+  const getVisibleExportColumns = () =>
+    columns.filter((column) => column.key !== 'actions' && isColumnVisible(column.key))
 
   const fetchAllRecords = async ({ allRecords, dateFromOverride, dateToOverride } = {}) => {
     const pageSizeAll = 100
@@ -557,7 +574,9 @@ const CommercialModule = () => {
       const all = await fetchAllRecords({ allRecords, dateFromOverride, dateToOverride })
       const head = exportColumns.map((column) => column.label)
       const body = all.map((row) =>
-        exportColumns.map((column) => String(formatExportValue(column.key, row[column.key], row) ?? '')),
+        exportColumns.map((column) =>
+          String(formatExportValue(column.key, row[column.key], row) ?? ''),
+        ),
       )
       const dateTag = new Date().toISOString().slice(0, 10)
       await exportToPdf({
@@ -1077,9 +1096,7 @@ const CommercialModule = () => {
             <label className="mac-file-upload-button" htmlFor={inputId}>
               Seleccionar archivo
             </label>
-            <span className="mac-file-upload-caption">
-              PDF, Word, Excel, imagen o TXT
-            </span>
+            <span className="mac-file-upload-caption">PDF, Word, Excel, imagen o TXT</span>
           </div>
           <div className="mac-file-upload-url">
             <CFormLabel className="commercial-field-label">
@@ -1109,10 +1126,7 @@ const CommercialModule = () => {
     )
   }
 
-  const detailFields = [
-    ...config.fields,
-    ...(config.audit === false ? [] : auditFields),
-  ].filter(
+  const detailFields = [...config.fields, ...(config.audit === false ? [] : auditFields)].filter(
     (field) => !field.createOnly || current?.[field.name],
   )
 
@@ -1134,7 +1148,11 @@ const CommercialModule = () => {
           </div>
           <div className="d-flex gap-2 flex-wrap justify-content-end">
             <CDropdown>
-              <CDropdownToggle color="secondary" variant="outline">
+              <CDropdownToggle
+                color="secondary"
+                variant="outline"
+                className="grid-column-picker-toggle"
+              >
                 Filtrar Columnas
               </CDropdownToggle>
               <CDropdownMenu style={{ minWidth: 260 }}>
@@ -1272,7 +1290,9 @@ const CommercialModule = () => {
                     {listFields.map((field) =>
                       isColumnVisible(field) ? (
                         <CTableDataCell key={field}>
-                          {renderListValue(field, row[field], row)}
+                          {renderListValue(field, row[field], row, (error) => {
+                            toast.error(error?.message || 'No se pudo descargar el archivo')
+                          })}
                         </CTableDataCell>
                       ) : null,
                     )}

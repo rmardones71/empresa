@@ -788,17 +788,56 @@ body {
 
 .commercial-export-button,
 .toolbar-export-button {
-  background: transparent !important;
+  --cui-btn-active-bg: var(--ucmcrm-primary);
+  --cui-btn-active-border-color: var(--ucmcrm-primary);
+  --cui-btn-active-color: #fff;
+  --cui-btn-bg: #fff;
+  --cui-btn-border-color: rgba(99, 102, 241, 0.45);
+  --cui-btn-color: #111827;
+  --cui-btn-hover-bg: var(--ucmcrm-primary);
+  --cui-btn-hover-border-color: var(--ucmcrm-primary);
+  --cui-btn-hover-color: #fff;
+  background: #fff !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
   border-radius: 999px !important;
   box-shadow: none !important;
-  font-weight: 700;
+  color: #111827 !important;
+  font-weight: 400;
 }
 
 .commercial-export-button:hover,
 .commercial-export-button:focus,
+.commercial-export-button:active,
+.commercial-export-button:first-child:active,
 .toolbar-export-button:hover,
-.toolbar-export-button:focus {
-  background: rgba(35, 75, 130, 0.06) !important;
+.toolbar-export-button:focus,
+.toolbar-export-button:active,
+.toolbar-export-button:first-child:active {
+  background: var(--ucmcrm-primary) !important;
+  border-color: var(--ucmcrm-primary) !important;
+  color: #fff !important;
+}
+
+.commercial-export-button:disabled,
+.toolbar-export-button:disabled {
+  background: #fff !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  color: #111827 !important;
+  opacity: 0.68;
+}
+
+.commercial-export-button svg,
+.toolbar-export-button svg {
+  color: #111827 !important;
+}
+
+.commercial-export-button:hover svg,
+.commercial-export-button:focus svg,
+.commercial-export-button:active svg,
+.toolbar-export-button:hover svg,
+.toolbar-export-button:focus svg,
+.toolbar-export-button:active svg {
+  color: #fff !important;
 }
 
 .commercial-tabs {
@@ -1860,7 +1899,30 @@ body {
 }
 
 .grid-column-picker-toggle {
+  --cui-btn-active-bg: var(--ucmcrm-primary);
+  --cui-btn-active-border-color: var(--ucmcrm-primary);
+  --cui-btn-active-color: #fff;
+  --cui-btn-bg: #fff;
+  --cui-btn-border-color: rgba(99, 102, 241, 0.45);
+  --cui-btn-color: #111827;
+  --cui-btn-hover-bg: var(--ucmcrm-primary);
+  --cui-btn-hover-border-color: var(--ucmcrm-primary);
+  --cui-btn-hover-color: #fff;
+  background: #fff !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  color: #111827 !important;
+  font-weight: 400;
   min-height: 36px;
+}
+
+.grid-column-picker-toggle:hover,
+.grid-column-picker-toggle:focus,
+.grid-column-picker-toggle:active,
+.grid-column-picker-toggle:first-child:active,
+.grid-column-picker-toggle.show {
+  background: var(--ucmcrm-primary) !important;
+  border-color: var(--ucmcrm-primary) !important;
+  color: #fff !important;
 }
 
 .grid-column-picker-menu {
@@ -2502,15 +2564,29 @@ body {
 }
 
 .contract-header-button-export {
-  background: transparent !important;
+  background: #fff !important;
+  border-color: rgba(35, 75, 130, 0.45) !important;
   box-shadow: none;
-  color: #25364d !important;
+  color: #111827 !important;
 }
 
 .contract-header-button-export:hover,
-.contract-header-button-export:focus {
-  background: rgba(35, 75, 130, 0.06) !important;
-  border-color: rgba(132, 152, 181, 0.95) !important;
+.contract-header-button-export:focus,
+.contract-header-button-export:active,
+.contract-header-button-export:first-child:active {
+  background: #234b82 !important;
+  border-color: #234b82 !important;
+  color: #fff !important;
+}
+
+.contract-header-button-export svg {
+  color: #111827 !important;
+}
+
+.contract-header-button-export:hover svg,
+.contract-header-button-export:focus svg,
+.contract-header-button-export:active svg {
+  color: #fff !important;
 }
 
 .contract-header-button-delete {

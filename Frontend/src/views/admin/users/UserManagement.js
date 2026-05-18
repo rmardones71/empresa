@@ -419,7 +419,7 @@ const UserManagement = () => {
         </div>
         <div className="d-flex gap-2">
           <CDropdown>
-            <CDropdownToggle color="secondary" variant="outline">
+            <CDropdownToggle color="secondary" variant="outline" className="grid-column-picker-toggle">
               Filtrar Columnas
             </CDropdownToggle>
             <CDropdownMenu style={{ minWidth: 260 }}>
