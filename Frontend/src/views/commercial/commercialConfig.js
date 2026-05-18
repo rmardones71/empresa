@@ -256,7 +256,12 @@ export const resources = {
         lookup: 'estado_contactos',
         required: true,
       },
-      { name: 'created_at', label: 'Fecha creacion sistema', type: 'datetime-local', readOnly: true },
+      {
+        name: 'created_at',
+        label: 'Fecha creacion sistema',
+        type: 'datetime-local',
+        readOnly: true,
+      },
       {
         name: 'updated_at',
         label: 'Fecha actualizacion sistema',
@@ -271,7 +276,13 @@ export const resources = {
     endpoint: 'lineas',
     idField: 'id_linea',
     defaultSort: 'id_linea',
-    required: ['contrato_empresa_id', 'id_tipo_servicio', 'id_tipo_tarifa', 'id_frecuencia', 'titulo'],
+    required: [
+      'contrato_empresa_id',
+      'id_tipo_servicio',
+      'id_tipo_tarifa',
+      'id_frecuencia',
+      'titulo',
+    ],
     listFields: [
       'id_linea',
       'titulo',
@@ -287,7 +298,13 @@ export const resources = {
       {
         title: 'Contrato y servicio',
         icon: 'list',
-        fields: ['contrato_empresa_id', 'titulo', 'id_tipo_servicio', 'id_tipo_tarifa', 'id_frecuencia'],
+        fields: [
+          'contrato_empresa_id',
+          'titulo',
+          'id_tipo_servicio',
+          'id_tipo_tarifa',
+          'id_frecuencia',
+        ],
       },
       {
         title: 'Ciclo de facturacion',
@@ -399,7 +416,15 @@ export const resources = {
     idField: 'id_documento',
     defaultSort: 'id_documento',
     required: ['contrato_empresa_id', 'nombre'],
-    listFields: ['id_documento', 'nombre', 'contrato', 'tipo_documento', 'version', 'estado'],
+    listFields: [
+      'id_documento',
+      'nombre',
+      'contrato',
+      'tipo_documento',
+      'version',
+      'estado',
+      'archivo',
+    ],
     formSections: [
       {
         title: 'Documento',

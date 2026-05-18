@@ -780,7 +780,7 @@ async function casos(id) {
 async function documentos(id) {
   const result = await query(
     `
-    SELECT d.id_documento, d.nombre, d.tipo_documento, d.version, d.estado, d.responsable, ce.titulo AS contrato, rel.created_at
+    SELECT d.id_documento, d.nombre, d.tipo_documento, d.version, d.estado, d.responsable, d.archivo, ce.titulo AS contrato, rel.created_at
     FROM dbo.contrato_empresa_documentos rel
     INNER JOIN dbo.documentos d ON d.id_documento = rel.documento_id
     INNER JOIN dbo.contratos_empresa ce ON ce.id = d.contrato_empresa_id
