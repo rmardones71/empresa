@@ -156,6 +156,28 @@ const AuthSplitLayout = ({ children, showHomeLink = true }) => {
               />
             ))}
 
+            <h1
+              className="position-absolute text-center m-0"
+              style={{
+                top: '9%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                color: 'rgba(255, 255, 255, 0.92)',
+                fontFamily:
+                  'Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: 'clamp(1.05rem, 1.45vw, 1.42rem)',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                lineHeight: 1.25,
+                textShadow: '0 6px 20px rgba(5, 15, 30, 0.24)',
+                textTransform: 'uppercase',
+                width: 'min(640px, 76%)',
+                zIndex: 1,
+              }}
+            >
+              GESTIÓN CONTRATOS EMPRESAS
+            </h1>
+
             <div
               className="position-relative"
               style={{
